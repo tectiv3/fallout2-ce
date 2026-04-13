@@ -399,3 +399,10 @@ FodyWeavers.xsd
 # versioning header
 src/platform/git_version.h
 CMakeUserPresets.json
+data
+.serena
+.claude/settings.local.json
+master.dat
+critter.dat
+mods
+FO2tweaks
