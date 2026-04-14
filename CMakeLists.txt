@@ -342,6 +342,7 @@ if(APPLE)
         set(RESOURCES
             "os/ios/AppIcon.xcassets"
             "os/ios/LaunchScreen.storyboard"
+            "os/ios/Settings.bundle"
         )
 
         target_sources(${EXECUTABLE_NAME} PUBLIC ${RESOURCES})
@@ -356,6 +357,31 @@ if(APPLE)
 
         set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout 2")
+
+        add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/master.dat"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/master.dat"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/critter.dat"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/critter.dat"
+            COMMAND rsync -a --delete
+                "${CMAKE_SOURCE_DIR}/mods/"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/mods/"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/fallout2.cfg"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/fallout2.cfg"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/ddraw.ini"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/ddraw.ini"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/f2_res.ini"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.ini"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/f2_res.dat"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.dat"
+            COMMENT "Bundling game data (master.dat, critter.dat, mods/, default configs) into app"
+        )
     else()
         set(RESOURCES
             "os/macos/fallout2-ce.icns"
