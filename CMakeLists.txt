@@ -389,9 +389,22 @@ endif()
 
 if(APPLE)
     if(IOS)
+        # Per-developer signing overrides. Set in a local file that's gitignored,
+        # e.g. `ios-signing.cmake` alongside CMakeLists.txt, or pass via -D:
+        #   set(IOS_BUNDLE_IDENTIFIER "com.yourname.fallout2-ce")
+        #   set(IOS_DEVELOPMENT_TEAM "ABCDE12345")
+        if(EXISTS "${CMAKE_SOURCE_DIR}/ios-signing.cmake")
+            include("${CMAKE_SOURCE_DIR}/ios-signing.cmake")
+        endif()
+        set(IOS_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
+            CACHE STRING "iOS bundle identifier (override in ios-signing.cmake)")
+        set(IOS_DEVELOPMENT_TEAM ""
+            CACHE STRING "iOS Apple Developer Team ID (override in ios-signing.cmake)")
+
         set(RESOURCES
             "os/ios/AppIcon.xcassets"
             "os/ios/LaunchScreen.storyboard"
+            "os/ios/Settings.bundle"
         )
 
         target_sources(${EXECUTABLE_NAME} PUBLIC ${RESOURCES})
@@ -400,12 +413,62 @@ if(APPLE)
         set_target_properties(${EXECUTABLE_NAME} PROPERTIES
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/ios/Info.plist"
             XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
-            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
+            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}"
+            XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${IOS_DEVELOPMENT_TEAM}"
+            XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
             XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
         )
 
         set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout 2")
+
+        # Always bundle: default configs (small, user-agnostic).
+        # Optionally bundle: mods (toggle via -DIOS_BUNDLE_MODS=OFF or `make ipa-lean-serve`).
+        # Optionally bundle: master.dat/critter.dat/data/sound (~500MB,
+        # requires user to own the game). Toggle via -DIOS_BUNDLE_ASSETS=ON
+        # or `make ipa-full`.
+        option(IOS_BUNDLE_MODS "Bundle files/mods/ into the IPA" ON)
+        option(IOS_BUNDLE_ASSETS "Bundle master.dat, critter.dat, and data/sound into the IPA" OFF)
+
+        add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/fallout2.cfg"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/fallout2.cfg"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/ddraw.ini"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/ddraw.ini"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/f2_res.ini"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.ini"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/f2_res.dat"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.dat"
+            COMMENT "Bundling default configs into app"
+        )
+
+        if(IOS_BUNDLE_MODS)
+            add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+                COMMAND rsync -a --delete
+                    "${CMAKE_SOURCE_DIR}/files/mods/"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/mods/"
+                COMMENT "Bundling mods into app"
+            )
+        endif()
+
+        if(IOS_BUNDLE_ASSETS)
+            add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                    "${CMAKE_SOURCE_DIR}/master.dat"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/master.dat"
+                COMMAND ${CMAKE_COMMAND} -E copy
+                    "${CMAKE_SOURCE_DIR}/critter.dat"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/critter.dat"
+                COMMAND rsync -a --delete
+                    "${CMAKE_SOURCE_DIR}/data/sound/"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/data/sound/"
+                COMMENT "Bundling game assets (master.dat, critter.dat, data/sound) into app"
+            )
+        endif()
     else()
         set(RESOURCES
             "os/macos/fallout2-ce.icns"
@@ -428,9 +491,21 @@ if(APPLE)
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout II")
     endif()
 
-    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout2-ce")
-    set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.3.0")
-    set(MACOSX_BUNDLE_BUNDLE_VERSION "1.3.0")
+    if(IOS AND DEFINED IOS_BUNDLE_IDENTIFIER)
+        set(MACOSX_BUNDLE_GUI_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}")
+    else()
+        set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout2-ce")
+    endif()
+    set(IOS_BUNDLE_VERSION "1.3.0")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/os/ios/version.txt")
+        file(READ "${CMAKE_SOURCE_DIR}/os/ios/version.txt" IOS_BUNDLE_VERSION_FROM_FILE)
+        string(STRIP "${IOS_BUNDLE_VERSION_FROM_FILE}" IOS_BUNDLE_VERSION_FROM_FILE)
+        if(IOS_BUNDLE_VERSION_FROM_FILE)
+            set(IOS_BUNDLE_VERSION "${IOS_BUNDLE_VERSION_FROM_FILE}")
+        endif()
+    endif()
+    set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${IOS_BUNDLE_VERSION}")
+    set(MACOSX_BUNDLE_BUNDLE_VERSION "${IOS_BUNDLE_VERSION}")
 endif()
 
 if((NOT ${CMAKE_SYSTEM_NAME} MATCHES "Emscripten"))

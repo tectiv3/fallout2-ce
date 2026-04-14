@@ -69,6 +69,7 @@ int main(int argc, char* argv[])
 #if __APPLE__ && TARGET_OS_IOS
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+    iOSSeedDocumentsFromBundle();
     chdir(iOSGetDocumentsPath());
 #endif
 
@@ -115,6 +116,13 @@ int main(int argc, char* argv[])
 
 #if _WIN32
     CloseHandle(GNW95_mutex);
+#endif
+
+#if __APPLE__ && TARGET_OS_IOS
+    // UIApplicationMain never returns, so returning from SDL_main leaves the
+    // app suspended with a frozen window. The user's explicit Exit choice
+    // means we actually want the process gone.
+    exit(rc);
 #endif
 
     return rc;

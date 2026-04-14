@@ -73,15 +73,42 @@ $ mv fallout2 /Applications/Fallout2
 
 ### iOS
 
-> **NOTE**: See Android note on controls.
+Building is done from source with your own signing certificate. Two IPA build modes:
 
-- Download `fallout2-ce.ipa`. Use sideloading applications ([AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/)) to install it to your device. Alternatively you can always build from source with your own signing certificate.
+- **Slim** (`make ipa`) — bundles only mods and default configs (~5MB game data). User drops `master.dat`, `critter.dat`, and `data/` into the iPad's Documents via Finder/Files after install. Good for personal use if you already manage your game files.
+- **All-inclusive** (`make ipa-full`) — also bundles `master.dat`, `critter.dat`, and `data/sound/` from the repo root (~500MB). Ready to install and play. Use this when sharing a build with a friend who doesn't want to manage files manually.
 
-- Run the game once. You'll see error message saying "Couldn't find/load text fonts". This step is needed for iOS to expose the game via File Sharing feature.
+**Always bundled:**
 
-- Use Finder (macOS Catalina and later) or iTunes (Windows and macOS Mojave or earlier) to copy `master.dat`, `critter.dat`, `patch000.dat`, `ce.dat`, and `data` folder to "Fallout 2" app ([how-to](https://support.apple.com/HT210598)). Watch for file names - keep (or make) them lowercased (see [Configuration](#configuration)).
+- Mods from `files/mods/` — both `.dat` archives and their `.ini` configs
+- Default configs from `files/`: `fallout2.cfg`, `ddraw.ini`, `f2_res.ini`
+- `ce.dat`
 
--
+**Bundled with `ipa-full` only (must be present in repo root before building):**
+
+- `master.dat`, `critter.dat` at the repo root
+- `data/sound/` with music ACMs (and any sfx you have extracted)
+
+On first launch the app seeds its Documents folder from the bundle: read-only data (`.dat` files, `data/sound/`, `mods/*.dat`) is symlinked (zero duplication). Writable configs (`.ini`, `fallout2.cfg`, `mods_order.txt`) are copy-once so user edits persist across app updates. The seeder silently skips any bundle item that wasn't included, so the same binary works in both modes. Savegames live in `Documents/data/SAVEGAME/`.
+
+**Build & run:**
+
+```console
+$ cmake --preset ios
+$ open out/build/ios/fallout2-ce.xcodeproj
+```
+
+In Xcode: set your Team (free Apple ID works for personal-device deploys) and pick a unique Bundle Identifier. Pick your iPad as the destination and Cmd+R. For a packaged unsigned IPA you can re-sign with AltStore/Sideloadly:
+
+```console
+$ cmake --build --preset ios-release
+$ cd out/build/ios && cpack -C RelWithDebInfo
+```
+
+**Settings (iOS Settings app → Fallout II):**
+
+- **Resolution** — pick a preset or `Native` (auto-detect from device screen). Overrides `resolution_x`/`resolution_y` in `fallout2.cfg` at launch.
+- **Scale** — integer 1..4. Overrides `scale` in `fallout2.cfg`.
 
 **Controls on iPad:**
 
@@ -94,6 +121,8 @@ $ mv fallout2 /Applications/Fallout2
 - **Three-finger long press → hold Shift** (highlights interactable objects — containers, doors, items — while held).
 - Taps on the HUD (interface bar / end-turn / end-combat buttons) act as direct touches so small buttons are easy to hit without aiming.
 - A Bluetooth keyboard works for everything else (numbered dialog choices, load game, etc.).
+
+Saves live in the app's Documents folder and persist across reinstalls on the same Bundle ID. To override any config manually, use Finder → your iPad → Files → Fallout 2, or the Files app on the iPad itself.
 
 ### Browser
 

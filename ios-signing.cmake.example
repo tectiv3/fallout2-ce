@@ -1,0 +1,5 @@
+# Copy this to ios-signing.cmake (which is gitignored) and fill in your values.
+# Picked up automatically by CMakeLists.txt when configuring the iOS preset.
+
+set(IOS_BUNDLE_IDENTIFIER "com.yourname.fallout2-ce")
+set(IOS_DEVELOPMENT_TEAM "ABCDE12345")
