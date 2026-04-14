@@ -17,10 +17,15 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+# Each worker binds its own HTTP listener; give them distinct ports so they
+# don't collide. Overrides via FUNNEL_PORT / LAN_PORT honoured.
+FUNNEL_PORT="${FUNNEL_PORT:-8765}"
+LAN_PORT="${LAN_PORT:-8766}"
+
 # Start LAN server in the background. Inherit stdout/stderr so its banner and
 # install URL stay visible alongside the funnel banner.
-"$SCRIPT_DIR/serve-ipa-lan.sh" &
+PORT="$LAN_PORT" "$SCRIPT_DIR/serve-ipa-lan.sh" &
 LAN_PID=$!
 
 # Funnel runs in the foreground and drives the overall lifetime.
-"$SCRIPT_DIR/serve-ipa.sh"
+PORT="$FUNNEL_PORT" "$SCRIPT_DIR/serve-ipa.sh"
