@@ -97,7 +97,20 @@ void paintSkillButton(int index)
     int x = skillButtonX(index);
     int y = (kToolbarHeight - kSkillButtonHeight) / 2;
 
-    fillRect(buffer, gToolbarWidth, x, y, kSkillButtonWidth, kSkillButtonHeight, _colorTable[7708]);
+    // Dark panel with a soft highlight on top/left and shadow on bottom/right
+    // so the button reads as raised without shouting. Palette indices chosen
+    // off the intensity table of white (0x7FFF) so they track the game's
+    // gamma-corrected greys.
+    unsigned char panel = intensityColorTable[_colorTable[32767]][22];
+    unsigned char highlight = intensityColorTable[_colorTable[32767]][55];
+    unsigned char shadow = _colorTable[0];
+
+    fillRect(buffer, gToolbarWidth, x, y, kSkillButtonWidth, kSkillButtonHeight, panel);
+    fillRect(buffer, gToolbarWidth, x, y, kSkillButtonWidth, 1, highlight);
+    fillRect(buffer, gToolbarWidth, x, y, 1, kSkillButtonHeight, highlight);
+    fillRect(buffer, gToolbarWidth, x, y + kSkillButtonHeight - 1, kSkillButtonWidth, 1, shadow);
+    fillRect(buffer, gToolbarWidth, x + kSkillButtonWidth - 1, y, 1, kSkillButtonHeight, shadow);
+
     drawCenteredLabel(buffer, gToolbarWidth, x, y, kSkillButtonWidth, kSkillButtonHeight, kSkills[index].label, _colorTable[32747]);
 }
 
