@@ -5,6 +5,7 @@
 #include "input.h"
 #include "interface.h"
 #include "kb.h"
+#include "platform/ios/quick_toolbar.h"
 #include "memory.h"
 #include "svga.h"
 #include "touch.h"
@@ -444,6 +445,14 @@ void _mouse_info()
 
         switch (gesture.type) {
         case kTap: {
+            // Toolbar taps bypass the mouse pipeline entirely: the handler
+            // invokes the action in place, so the cursor never moves.
+            if (gesture.numberOfTouches == 1 && quickToolbarContainsPoint(gesture.x, gesture.y)) {
+                if (quickToolbarHandleTap(gesture.x, gesture.y)) {
+                    break;
+                }
+            }
+
             // Taps on HUD controls teleport the cursor to the finger and
             // click there; taps in the game area keep relative behaviour.
             bool overHud = false;
