@@ -1,5 +1,7 @@
 #include "interface.h"
 
+#include "platform/ios/quick_toolbar.h"
+
 #include <algorithm>
 #include <stdio.h>
 #include <string.h>
@@ -581,6 +583,8 @@ int interfaceInit()
     gInterfaceBarInitialized = false;
     gInterfaceBarHidden = true;
 
+    quickToolbarInit();
+
     return 0;
 }
 
@@ -604,6 +608,8 @@ void interfaceReset()
 // 0x45E440
 void interfaceFree()
 {
+    quickToolbarFree();
+
     if (gInterfaceBarWindow != -1) {
         // SFALL
         sidePanelsExit();
@@ -780,6 +786,8 @@ void interfaceBarHide()
         }
     }
 
+    quickToolbarHide();
+
     // SFALL
     sidePanelsHide();
 
@@ -799,6 +807,8 @@ void interfaceBarShow()
             gInterfaceBarHidden = false;
         }
     }
+
+    quickToolbarShow();
 
     // SFALL
     sidePanelsShow();
@@ -823,6 +833,7 @@ void interfaceBarEnable()
 
         buttonEnable(gEndTurnButton);
         buttonEnable(gEndCombatButton);
+        quickToolbarUpdateCombatState();
         displayMonitorEnable();
 
         gInterfaceBarEnabled = true;
@@ -845,6 +856,7 @@ void interfaceBarDisable()
         }
         buttonDisable(gEndTurnButton);
         buttonDisable(gEndCombatButton);
+        quickToolbarUpdateCombatState();
         gInterfaceBarEnabled = false;
     }
 }
@@ -1502,6 +1514,7 @@ void interfaceBarEndButtonsRenderGreenLights()
     if (gInterfaceBarEndButtonsIsVisible) {
         buttonEnable(gEndTurnButton);
         buttonEnable(gEndCombatButton);
+        quickToolbarUpdateCombatState();
 
         FrmImage lightsFrmImage;
         // endltgrn.frm - green lights around end turn/combat window
@@ -1522,6 +1535,7 @@ void interfaceBarEndButtonsRenderRedLights()
     if (gInterfaceBarEndButtonsIsVisible) {
         buttonDisable(gEndTurnButton);
         buttonDisable(gEndCombatButton);
+        quickToolbarUpdateCombatState();
 
         FrmImage lightsFrmImage;
         // endltred.frm - red lights around end turn/combat window
