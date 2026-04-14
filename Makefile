@@ -7,16 +7,28 @@ IOS_ARCHIVE      := $(IOS_BUILD_DIR)/fallout2-ce.xcarchive
 IOS_EXPORT_DIR   := $(IOS_BUILD_DIR)/export
 IOS_EXPORT_PLIST := ExportOptions.plist
 
-.PHONY: ipa ios-configure ios-archive ios-export ios-clean
+.PHONY: ipa ipa-full ios-configure ios-configure-full ios-archive ios-export ios-clean
 
-ipa: ios-export
+# Slim IPA: bundles mods + configs only. User supplies master.dat /
+# critter.dat / data/sound in the iPad's Documents via Files app.
+ipa: ios-configure ios-export
 	@echo ""
-	@echo "IPA ready: $(IOS_EXPORT_DIR)/fallout2-ce.ipa"
+	@echo "Slim IPA ready: $(IOS_EXPORT_DIR)/fallout2-ce.ipa"
+
+# All-inclusive IPA: bundles game data too. Requires master.dat,
+# critter.dat, and data/sound/ present in the repo root. Useful when
+# sending a ready-to-run build to someone else.
+ipa-full: ios-configure-full ios-export
+	@echo ""
+	@echo "All-inclusive IPA ready: $(IOS_EXPORT_DIR)/fallout2-ce.ipa"
 
 ios-configure:
-	cmake --preset ios
+	cmake --preset ios -DIOS_BUNDLE_ASSETS=OFF
 
-ios-archive: ios-configure
+ios-configure-full:
+	cmake --preset ios -DIOS_BUNDLE_ASSETS=ON
+
+ios-archive:
 	xcodebuild \
 		-project $(IOS_XCODEPROJ) \
 		-scheme fallout2-ce \

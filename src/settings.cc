@@ -4,6 +4,13 @@
 #include "game_config.h"
 #include "platform_compat.h"
 
+#if __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+#include "platform/ios/paths.h"
+#endif
+#endif
+
 #include <algorithm>
 #include <functional>
 #include <string>
@@ -254,6 +261,10 @@ bool settingsInit(bool isMapper, int argc, char** argv)
     for (const auto& descriptor : settingsRegistry) {
         descriptor.read();
     }
+
+#if __APPLE__ && TARGET_OS_IOS
+    iOSApplyUserDefaultsToSettings();
+#endif
 
     return true;
 }
