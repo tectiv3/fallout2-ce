@@ -376,9 +376,12 @@ if(APPLE)
         set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout 2")
 
-        # Bundle mods + default configs only. User is expected to drop
-        # master.dat, critter.dat, and data/ (with data/sound/music/*.acm)
-        # into Documents via the Files app after first launch.
+        # Always bundle: mods + default configs (small, user-agnostic).
+        # Optionally bundle: master.dat/critter.dat/data/sound (~500MB,
+        # requires user to own the game). Toggle via -DIOS_BUNDLE_ASSETS=ON
+        # or `make ipa-full`.
+        option(IOS_BUNDLE_ASSETS "Bundle master.dat, critter.dat, and data/sound into the IPA" OFF)
+
         add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
             COMMAND rsync -a --delete
                 "${CMAKE_SOURCE_DIR}/files/mods/"
@@ -394,6 +397,21 @@ if(APPLE)
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.ini"
             COMMENT "Bundling mods and default configs into app"
         )
+
+        if(IOS_BUNDLE_ASSETS)
+            add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                    "${CMAKE_SOURCE_DIR}/master.dat"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/master.dat"
+                COMMAND ${CMAKE_COMMAND} -E copy
+                    "${CMAKE_SOURCE_DIR}/critter.dat"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/critter.dat"
+                COMMAND rsync -a --delete
+                    "${CMAKE_SOURCE_DIR}/data/sound/"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/data/sound/"
+                COMMENT "Bundling game assets (master.dat, critter.dat, data/sound) into app"
+            )
+        endif()
     else()
         set(RESOURCES
             "os/macos/fallout2-ce.icns"

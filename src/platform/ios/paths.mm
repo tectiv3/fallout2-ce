@@ -10,6 +10,7 @@
 #include <SDL.h>
 
 #include "../../settings.h"
+#include "../../sfall_config.h"
 
 // Modelled after SDL_AndroidGetExternalStoragePath.
 const char* iOSGetDocumentsPath()
@@ -70,8 +71,14 @@ static void iOSEnsureDir(const char* path)
 }
 
 // Refresh symlinks each launch so app-update bundle path changes propagate.
+// Skip silently when the bundle source doesn't exist (slim build mode —
+// user supplies the file in Documents themselves).
 static void iOSRefreshSymlink(const char* srcPath, const char* dstPath)
 {
+    if (access(srcPath, F_OK) != 0) {
+        return;
+    }
+
     struct stat st;
     if (lstat(dstPath, &st) == 0) {
         if (S_ISLNK(st.st_mode)) {
@@ -135,8 +142,16 @@ void iOSSeedDocumentsFromBundle()
         SDL_snprintf(pathBuf, sizeof(pathBuf), "%sdata/savegame", documentsPath);
         iOSEnsureDir(pathBuf);
 
-        // master.dat, critter.dat, and data/ (with data/sound/music/) are
-        // supplied by the user via the Files app; not bundled.
+        // Read-only game data lives in the bundle; refresh symlinks each
+        // launch so the bundle path (changes on app updates) stays current.
+        const char* bundleSymlinks[] = { "master.dat", "critter.dat", "data/sound" };
+        for (size_t i = 0; i < SDL_arraysize(bundleSymlinks); ++i) {
+            char srcPath[PATH_MAX];
+            char dstPath[PATH_MAX];
+            SDL_snprintf(srcPath, sizeof(srcPath), "%s%s", bundlePath, bundleSymlinks[i]);
+            SDL_snprintf(dstPath, sizeof(dstPath), "%s%s", documentsPath, bundleSymlinks[i]);
+            iOSRefreshSymlink(srcPath, dstPath);
+        }
 
         const char* topLevelConfigs[] = { "fallout2.cfg", "ddraw.ini", "f2_res.ini" };
         for (size_t i = 0; i < SDL_arraysize(topLevelConfigs); ++i) {
@@ -178,6 +193,7 @@ void iOSApplyUserDefaultsToSettings()
         [defaults registerDefaults:@{
             @"resolution_preset" : @"native",
             @"resolution_scale" : @1,
+            @"skip_intro_movies" : @NO,
         }];
 
         NSString* preset = [defaults stringForKey:@"resolution_preset"];
@@ -216,5 +232,14 @@ void iOSApplyUserDefaultsToSettings()
         fallout::settings.screen.resolution_x = width;
         fallout::settings.screen.resolution_y = height;
         fallout::settings.screen.scale = scale;
+
+        // SkipOpeningMovies: 0=play intros, 1=skip intros, 2=also skip splash.
+        // Map the toggle to 0/2 so the splash is also skipped when the user
+        // opts out of intros (the common "just boot me in" expectation).
+        int skipIntros = [defaults boolForKey:@"skip_intro_movies"] ? 2 : 0;
+        fallout::configSetInt(&fallout::gSfallConfig,
+            SFALL_CONFIG_MISC_KEY,
+            SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY,
+            skipIntros);
     }
 }

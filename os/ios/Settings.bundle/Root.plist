@@ -24,22 +24,30 @@
             <key>Titles</key>
             <array>
                 <string>Native — auto detect</string>
-                <string>1024x768</string>
-                <string>1366x1024</string>
-                <string>1620x1080</string>
-                <string>2048x1536</string>
-                <string>2388x1668</string>
-                <string>2732x2048</string>
+                <string>1024x768 (iPad 4:3 points)</string>
+                <string>1180x820 (iPad Air / 11" points)</string>
+                <string>1366x1024 (iPad Pro 12.9" points)</string>
+                <string>1376x1032 (iPad Pro 13" M4 points)</string>
+                <string>1620x1080 (iPad Air 10.9)</string>
+                <string>2048x1536 (iPad 4:3 @2x)</string>
+                <string>2388x1668 (iPad Pro 11")</string>
+                <string>2420x1668 (iPad Pro 11" M4)</string>
+                <string>2732x2048 (iPad Pro 12.9")</string>
+                <string>2752x2064 (iPad Pro 13" M4)</string>
             </array>
             <key>Values</key>
             <array>
                 <string>native</string>
                 <string>1024x768</string>
+                <string>1180x820</string>
                 <string>1366x1024</string>
+                <string>1376x1032</string>
                 <string>1620x1080</string>
                 <string>2048x1536</string>
                 <string>2388x1668</string>
+                <string>2420x1668</string>
                 <string>2732x2048</string>
+                <string>2752x2064</string>
             </array>
         </dict>
         <dict>
@@ -65,6 +73,22 @@
                 <integer>3</integer>
                 <integer>4</integer>
             </array>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Startup</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Title</key>
+            <string>Skip intro movies</string>
+            <key>Key</key>
+            <string>skip_intro_movies</string>
+            <key>DefaultValue</key>
+            <false/>
         </dict>
     </array>
 </dict>

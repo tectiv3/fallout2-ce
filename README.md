@@ -74,21 +74,22 @@ $ mv app /Applications/Fallout2
 
 ### iOS
 
-Building is done from source with your own signing certificate. Game data (`master.dat`, `critter.dat`, and the `data/` tree with music) is user-supplied via the iPad's Files app; the app only bundles mods and default configs.
+Building is done from source with your own signing certificate. Two IPA build modes:
 
-**What the IPA bundles:**
+- **Slim** (`make ipa`) — bundles only mods and default configs (~5MB game data). User drops `master.dat`, `critter.dat`, and `data/` into the iPad's Documents via Finder/Files after install. Good for personal use if you already manage your game files.
+- **All-inclusive** (`make ipa-full`) — also bundles `master.dat`, `critter.dat`, and `data/sound/` from the repo root (~500MB). Ready to install and play. Use this when sharing a build with a friend who doesn't want to manage files manually.
+
+**Always bundled:**
 
 - Mods from `files/mods/` — both `.dat` archives and their `.ini` configs
 - Default configs from `files/`: `fallout2.cfg`, `ddraw.ini`, `f2_res.ini`
 
-**What you supply after install (via the Files app → On My iPad → Fallout 2):**
+**Bundled with `ipa-full` only (must be present in repo root before building):**
 
-- `master.dat`
-- `critter.dat`
-- `data/` directory tree — at minimum `data/sound/music/*.acm` for music. Savegames land in `data/SAVEGAME/` automatically.
-- Optional: `f2_res.dat` if you want the high-res patch's graphical assets
+- `master.dat`, `critter.dat` at the repo root
+- `data/sound/` with music ACMs (and any sfx you have extracted)
 
-On first launch the app seeds its Documents folder: bundled `mods/` `.dat` files are symlinked (zero duplication), and `.ini` / `mods_order.txt` files are copy-once so your edits in Documents persist across app updates.
+On first launch the app seeds its Documents folder from the bundle: read-only data (`.dat` files, `data/sound/`, `mods/*.dat`) is symlinked (zero duplication). Writable configs (`.ini`, `fallout2.cfg`, `mods_order.txt`) are copy-once so user edits persist across app updates. The seeder silently skips any bundle item that wasn't included, so the same binary works in both modes. Savegames live in `Documents/data/SAVEGAME/`.
 
 **Build & run:**
 
@@ -121,7 +122,7 @@ $ cd out/build/ios && cpack -C RelWithDebInfo
 - Taps on the HUD (interface bar / end-turn / end-combat buttons) act as direct touches so small buttons are easy to hit without aiming.
 - A Bluetooth keyboard works for everything else (numbered dialog choices, load game, etc.).
 
-Saves live in the app's Documents folder and persist across reinstalls on the same Bundle ID. To drop the required data files, custom `.dat` overrides, or edit `fallout2.cfg` manually, use Finder → your iPad → Files → Fallout 2, or the Files app on the iPad itself.
+Saves live in the app's Documents folder and persist across reinstalls on the same Bundle ID. To override any config manually, use Finder → your iPad → Files → Fallout 2, or the Files app on the iPad itself.
 
 ### Browser
 
