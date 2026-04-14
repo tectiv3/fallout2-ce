@@ -74,15 +74,21 @@ $ mv app /Applications/Fallout2
 
 ### iOS
 
-This fork bundles all required game data into the app itself, so you don't need to side-load `master.dat`/`critter.dat` or any mods onto the device after install. Building is done from source with your own signing certificate.
+Building is done from source with your own signing certificate. Game data (`master.dat`, `critter.dat`, and the `data/` tree with music) is user-supplied via the iPad's Files app; the app only bundles mods and default configs.
 
-**What gets bundled into the IPA:**
+**What the IPA bundles:**
 
-- `master.dat`, `critter.dat` (copy them into the repo root before building)
-- Default configs from `files/`: `fallout2.cfg`, `ddraw.ini`, `f2_res.ini`, `f2_res.dat`
-- Mods from `files/mods/` (drop any `.dat` / `.ini` you want to ship in here)
+- Mods from `files/mods/` — both `.dat` archives and their `.ini` configs
+- Default configs from `files/`: `fallout2.cfg`, `ddraw.ini`, `f2_res.ini`
 
-On first launch the app seeds its Documents folder from the bundle: `.dat` files are symlinked (zero duplication), `.ini` files and `mods_order.txt` are copy-once so your edits in Documents persist across app updates.
+**What you supply after install (via the Files app → On My iPad → Fallout 2):**
+
+- `master.dat`
+- `critter.dat`
+- `data/` directory tree — at minimum `data/sound/music/*.acm` for music. Savegames land in `data/SAVEGAME/` automatically.
+- Optional: `f2_res.dat` if you want the high-res patch's graphical assets
+
+On first launch the app seeds its Documents folder: bundled `mods/` `.dat` files are symlinked (zero duplication), and `.ini` / `mods_order.txt` files are copy-once so your edits in Documents persist across app updates.
 
 **Build & run:**
 
@@ -109,11 +115,13 @@ $ cd out/build/ios && cpack -C RelWithDebInfo
 - Two-finger tap → right click (cycles cursor mode between walk and attack).
 - One-finger drag → scroll map / windows.
 - Two-finger drag → mouse wheel.
-- **Three-finger swipe down → ESC** (opens options / main menu). Fallout 2's menu is normally bound to the Esc key; this gesture is the touch equivalent.
-- **Four-finger swipe down → F6** (quicksave).
+- **Three-finger swipe down → ESC** (opens options / main menu).
+- **Four-finger long press → F6** (quicksave). Hold four fingers on the screen for about half a second.
+- **Three-finger long press → hold Shift** (highlights interactable objects — containers, doors, items — while held).
+- Taps on the HUD (interface bar / end-turn / end-combat buttons) act as direct touches so small buttons are easy to hit without aiming.
 - A Bluetooth keyboard works for everything else (numbered dialog choices, load game, etc.).
 
-Saves live in the app's Documents folder and persist across reinstalls on the same Bundle ID. To drop custom `.dat` overrides or edit `fallout2.cfg` manually, use Finder → your iPad → Files → Fallout 2.
+Saves live in the app's Documents folder and persist across reinstalls on the same Bundle ID. To drop the required data files, custom `.dat` overrides, or edit `fallout2.cfg` manually, use Finder → your iPad → Files → Fallout 2, or the Files app on the iPad itself.
 
 ### Browser
 

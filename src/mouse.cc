@@ -3,10 +3,12 @@
 #include "color.h"
 #include "dinput.h"
 #include "input.h"
+#include "interface.h"
 #include "kb.h"
 #include "memory.h"
 #include "svga.h"
 #include "touch.h"
+#include "window_manager.h"
 
 namespace fallout {
 
@@ -383,40 +385,105 @@ void _mouse_info()
         static int prevx;
         static int prevy;
 
-        // Multi-finger swipe-down gestures for keyboard-less iPad play:
-        //   3 fingers → ESC (options menu)
-        //   4 fingers → F6 (quicksave)
-        if (gesture.type == kPan
-            && (gesture.numberOfTouches == 3 || gesture.numberOfTouches == 4)) {
+        // Multi-finger gestures for keyboard-less iPad play:
+        //   3-finger swipe down → ESC (options menu)
+        //   4-finger tap        → F6  (quicksave, handled in kTap above)
+        //   3-finger long press → hold Left Shift (highlights interactables)
+        if (gesture.type == kPan && gesture.numberOfTouches == 3) {
             static int swipeStartY;
-            static int swipeFingers;
             if (gesture.state == kBegan) {
                 swipeStartY = gesture.y;
-                swipeFingers = gesture.numberOfTouches;
             } else if (gesture.state == kEnded) {
-                if (gesture.y - swipeStartY > screenGetHeight() / 3) {
-                    enqueueInputEvent(swipeFingers == 4 ? KEY_F6 : KEY_ESCAPE);
+                int dy = gesture.y - swipeStartY;
+                SDL_Log("iOS gesture: 3-finger pan ended, dy=%d threshold=%d",
+                    dy, screenGetHeight() / 3);
+                if (dy > screenGetHeight() / 3) {
+                    SDL_Log("iOS gesture: 3-finger swipe-down → ESC");
+                    enqueueInputEvent(KEY_ESCAPE);
                 }
             }
             return;
         }
 
+        // Four-finger long press → F6 (quicksave). Long-press is more
+        // reliable than a tap since all 4 fingers rarely land and lift
+        // within the 75ms tap window; and more reliable than a swipe
+        // since iPadOS intercepts multi-finger vertical swipes.
+        if (gesture.type == kLongPress && gesture.numberOfTouches == 4) {
+            if (gesture.state == kBegan) {
+                SDL_Log("iOS gesture: 4-finger long-press → quicksave (F6)");
+                enqueueInputEvent(KEY_F6);
+            }
+            return;
+        }
+
+        // FO2tweaks' highlighting uses sfall's key_pressed(), which reads
+        // SDL's own SDL_GetKeyboardState. Engine-internal _kb_simulate_key
+        // bypasses that, so push real SDL_KEYDOWN/UP events instead.
+        if (gesture.type == kLongPress && gesture.numberOfTouches == 3) {
+            static bool shiftHeld = false;
+            SDL_Event ev;
+            SDL_zero(ev);
+            ev.key.keysym.scancode = SDL_SCANCODE_LSHIFT;
+            ev.key.keysym.sym = SDLK_LSHIFT;
+            if (gesture.state == kBegan && !shiftHeld) {
+                SDL_Log("iOS gesture: 3-finger long-press began → Shift DOWN");
+                ev.type = SDL_KEYDOWN;
+                ev.key.state = SDL_PRESSED;
+                SDL_PushEvent(&ev);
+                shiftHeld = true;
+            } else if (gesture.state == kEnded && shiftHeld) {
+                SDL_Log("iOS gesture: 3-finger long-press ended → Shift UP");
+                ev.type = SDL_KEYUP;
+                ev.key.state = SDL_RELEASED;
+                SDL_PushEvent(&ev);
+                shiftHeld = false;
+            }
+            return;
+        }
+
         switch (gesture.type) {
-        case kTap:
-            if (mouseDeviceUsesRelativeMode()) {
+        case kTap: {
+            // Taps on HUD controls teleport the cursor to the finger and
+            // click there; taps in the game area keep relative behaviour.
+            bool overHud = false;
+            if (mouseDeviceUsesRelativeMode() && gInterfaceBarWindow != -1) {
+                Rect hudRect;
+                if (windowGetRect(gInterfaceBarWindow, &hudRect) == 0
+                    && gesture.x >= hudRect.left && gesture.x <= hudRect.right
+                    && gesture.y >= hudRect.top && gesture.y <= hudRect.bottom) {
+                    overHud = true;
+                }
+            }
+
+            if (mouseDeviceUsesRelativeMode() && !overHud) {
                 if (gesture.numberOfTouches == 1) {
                     _mouse_simulate_input(0, 0, MOUSE_STATE_LEFT_BUTTON_DOWN);
                 } else if (gesture.numberOfTouches == 2) {
                     _mouse_simulate_input(0, 0, MOUSE_STATE_RIGHT_BUTTON_DOWN);
                 }
             } else {
-                if (gesture.numberOfTouches == 1) {
-                    _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_LEFT_BUTTON_DOWN);
-                } else if (gesture.numberOfTouches == 2) {
-                    _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_RIGHT_BUTTON_DOWN);
+                // Relative _mouse_simulate_input would *add* gesture.x/y to the
+                // current cursor position. Teleport explicitly first, then
+                // click in place so the button under the finger receives it.
+                if (mouseDeviceUsesRelativeMode()) {
+                    SDL_Log("iOS gesture: HUD tap at (%d, %d)", gesture.x, gesture.y);
+                    _mouse_set_position(gesture.x, gesture.y);
+                    if (gesture.numberOfTouches == 1) {
+                        _mouse_simulate_input(0, 0, MOUSE_STATE_LEFT_BUTTON_DOWN);
+                    } else if (gesture.numberOfTouches == 2) {
+                        _mouse_simulate_input(0, 0, MOUSE_STATE_RIGHT_BUTTON_DOWN);
+                    }
+                } else {
+                    if (gesture.numberOfTouches == 1) {
+                        _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_LEFT_BUTTON_DOWN);
+                    } else if (gesture.numberOfTouches == 2) {
+                        _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_RIGHT_BUTTON_DOWN);
+                    }
                 }
             }
             break;
+        }
         case kLongPress:
         case kPan:
             if (gesture.state == kBegan) {

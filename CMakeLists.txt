@@ -376,13 +376,10 @@ if(APPLE)
         set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout 2")
 
+        # Bundle mods + default configs only. User is expected to drop
+        # master.dat, critter.dat, and data/ (with data/sound/music/*.acm)
+        # into Documents via the Files app after first launch.
         add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy
-                "${CMAKE_SOURCE_DIR}/master.dat"
-                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/master.dat"
-            COMMAND ${CMAKE_COMMAND} -E copy
-                "${CMAKE_SOURCE_DIR}/critter.dat"
-                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/critter.dat"
             COMMAND rsync -a --delete
                 "${CMAKE_SOURCE_DIR}/files/mods/"
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/mods/"
@@ -395,10 +392,7 @@ if(APPLE)
             COMMAND ${CMAKE_COMMAND} -E copy
                 "${CMAKE_SOURCE_DIR}/files/f2_res.ini"
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.ini"
-            COMMAND ${CMAKE_COMMAND} -E copy
-                "${CMAKE_SOURCE_DIR}/files/f2_res.dat"
-                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.dat"
-            COMMENT "Bundling game data (master.dat, critter.dat, mods/, default configs) into app"
+            COMMENT "Bundling mods and default configs into app"
         )
     else()
         set(RESOURCES

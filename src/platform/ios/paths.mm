@@ -135,14 +135,8 @@ void iOSSeedDocumentsFromBundle()
         SDL_snprintf(pathBuf, sizeof(pathBuf), "%sdata/savegame", documentsPath);
         iOSEnsureDir(pathBuf);
 
-        const char* topLevelDats[] = { "master.dat", "critter.dat", "f2_res.dat" };
-        for (size_t i = 0; i < SDL_arraysize(topLevelDats); ++i) {
-            char srcPath[PATH_MAX];
-            char dstPath[PATH_MAX];
-            SDL_snprintf(srcPath, sizeof(srcPath), "%s%s", bundlePath, topLevelDats[i]);
-            SDL_snprintf(dstPath, sizeof(dstPath), "%s%s", documentsPath, topLevelDats[i]);
-            iOSRefreshSymlink(srcPath, dstPath);
-        }
+        // master.dat, critter.dat, and data/ (with data/sound/music/) are
+        // supplied by the user via the Files app; not bundled.
 
         const char* topLevelConfigs[] = { "fallout2.cfg", "ddraw.ini", "f2_res.ini" };
         for (size_t i = 0; i < SDL_arraysize(topLevelConfigs); ++i) {
