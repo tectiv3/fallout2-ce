@@ -453,8 +453,10 @@ void _mouse_info()
                 }
             }
 
-            // Taps on HUD controls teleport the cursor to the finger and
-            // click there; taps in the game area keep relative behaviour.
+            // Taps on belt buttons inject the button's keyCode directly so the
+            // cursor stays put. Walking the window's button list by rect is
+            // sufficient because every belt button is a solid sprite at its
+            // advertised rect (no transparent-mask hit-tests).
             bool overHud = false;
             if (mouseDeviceUsesRelativeMode() && gInterfaceBarWindow != -1) {
                 Rect hudRect;
@@ -462,6 +464,37 @@ void _mouse_info()
                     && gesture.x >= hudRect.left && gesture.x <= hudRect.right
                     && gesture.y >= hudRect.top && gesture.y <= hudRect.bottom) {
                     overHud = true;
+
+                    if (gesture.numberOfTouches == 1 || gesture.numberOfTouches == 2) {
+                        Window* hudWindow = windowGetWindow(gInterfaceBarWindow);
+                        if (hudWindow != nullptr) {
+                            for (Button* button = hudWindow->buttonListHead; button != nullptr; button = button->next) {
+                                if ((button->flags & BUTTON_FLAG_DISABLED) != 0) {
+                                    continue;
+                                }
+                                int left = hudWindow->rect.left + button->rect.left;
+                                int top = hudWindow->rect.top + button->rect.top;
+                                int right = hudWindow->rect.left + button->rect.right;
+                                int bottom = hudWindow->rect.top + button->rect.bottom;
+                                if (gesture.x < left || gesture.x > right || gesture.y < top || gesture.y > bottom) {
+                                    continue;
+                                }
+                                int keyCode = gesture.numberOfTouches == 1
+                                    ? button->leftMouseUpEventCode
+                                    : button->rightMouseUpEventCode;
+                                if (keyCode == -1) {
+                                    break;
+                                }
+                                enqueueInputEvent(keyCode);
+                                goto tap_done;
+                            }
+                        }
+                    }
+
+                    // Tap landed on belt chrome (no button under it). Consume
+                    // silently rather than teleporting the cursor to an inert
+                    // region.
+                    goto tap_done;
                 }
             }
 
@@ -491,6 +524,7 @@ void _mouse_info()
                     }
                 }
             }
+        tap_done:
             break;
         }
         case kLongPress:
