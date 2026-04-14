@@ -498,4 +498,17 @@ void scriptHooks_BarterPrice(BarterPriceContext* ctx)
     }
 }
 
+/*
+    HOOK_ONDEATH
+
+    Runs when a critter dies (after death animation completes).
+
+    int     arg0 - the critter that died
+*/
+void scriptHooks_OnDeath(Object* critter)
+{
+    ScriptHookCall hook(HOOK_ONDEATH, 0, { critter });
+    hook.call();
+}
+
 } // namespace fallout
