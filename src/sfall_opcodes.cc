@@ -602,8 +602,9 @@ static void op_get_weapon_ammo_count(Program* program)
 
     // CE: Implementation is different.
     int ammoQuantityOrCharges = 0;
-    if (obj != nullptr) {
-        if (PID_TYPE(obj->pid) == OBJ_TYPE_ITEM) {
+    if (obj != nullptr && PID_TYPE(obj->pid) == OBJ_TYPE_ITEM) {
+        Proto* proto;
+        if (protoGetProto(obj->pid, &proto) != -1) {
             switch (itemGetType(obj)) {
             case ITEM_TYPE_AMMO:
             case ITEM_TYPE_WEAPON:
@@ -677,6 +678,12 @@ static void op_get_screen_width(Program* program)
 static void op_get_screen_height(Program* program)
 {
     programStackPushInteger(program, screenGetHeight());
+}
+
+// get_light_level
+static void op_get_light_level(Program* program)
+{
+    programStackPushInteger(program, lightGetAmbientIntensity());
 }
 
 // note: might need to be updated when Hero Appearance is implemented
@@ -1085,6 +1092,20 @@ static void op_resize_array(Program* program)
     auto newLen = programStackPopInteger(program);
     auto arrayId = programStackPopInteger(program);
     ResizeArray(arrayId, newLen);
+}
+
+// get_npc_level
+static void op_get_npc_level(Program* program)
+{
+    int pid = programStackPopInteger(program);
+    programStackPushInteger(program, partyMemberGetNpcLevel(pid));
+}
+
+// inc_npc_level
+static void op_inc_npc_level(Program* program)
+{
+    int pid = programStackPopInteger(program);
+    partyMemberIncNpcLevel(pid);
 }
 
 // party_member_list
@@ -1728,8 +1749,10 @@ void sfallOpcodesInit()
     // 0x81a3 - int  eax_available()
     // 0x81a4 - void set_eax_environment(int environment)
 
-    // 0x81a5 - void inc_npc_level(int pid/string name)
-    // 0x8241 - int  get_npc_level(int pid/string name)
+    // 0x81a5 - void inc_npc_level(int pid)
+    interpreterRegisterOpcode(0x81A5, op_inc_npc_level);
+    // 0x8241 - int  get_npc_level(int pid)
+    interpreterRegisterOpcode(0x8241, op_get_npc_level);
 
     // 0x81a6 - int get_viewport_x()
     // 0x81a7 - int get_viewport_y()
@@ -1907,6 +1930,7 @@ void sfallOpcodesInit()
     interpreterRegisterOpcode(0x8224, op_create_message_window);
 
     // 0x8226 - int get_light_level()
+    interpreterRegisterOpcode(0x8226, op_get_light_level);
 
     // 0x8227 - void refresh_pc_art()
     interpreterRegisterOpcode(0x8227, op_refresh_pc_art);

@@ -59,6 +59,7 @@ static void mf_opcode_exists(OpcodeContext& ctx);
 static void mf_outlined_object(OpcodeContext& ctx);
 static void mf_set_cursor_mode(OpcodeContext& ctx);
 static void mf_set_flags(OpcodeContext& ctx);
+static void mf_get_outline(OpcodeContext& ctx);
 static void mf_set_outline(OpcodeContext& ctx);
 static void mf_show_window(OpcodeContext& ctx);
 static void mf_signal_close_game(OpcodeContext& ctx);
@@ -105,7 +106,7 @@ const MetaruleInfo kMetarules[] = {
     // {"get_metarule_table",        mf_get_metarule_table,        0, 0},
     // {"get_object_ai_data",        mf_get_object_ai_data,        2, 2, -1, {ARG_OBJECT, ARG_INT}},
     { "get_object_data", mf_get_object_data, 2, 2, 0, { ARG_OBJECT, ARG_INT } },
-    // {"get_outline",               mf_get_outline,               1, 1,  0, {ARG_OBJECT}},
+    {"get_outline",               mf_get_outline,               1, 1,  0, {ARG_OBJECT}},
     { "get_sfall_arg_at", mf_get_sfall_arg_at, 1, 1, 0, { ARG_INT } },
     // {"get_stat_max",              mf_get_stat_max,              1, 2,  0, {ARG_INT, ARG_INT}},
     // {"get_stat_min",              mf_get_stat_min,              1, 2,  0, {ARG_INT, ARG_INT}},
@@ -377,6 +378,12 @@ void mf_set_flags(OpcodeContext& ctx)
     int flags = ctx.arg(1).asInt();
 
     object->flags = flags;
+}
+
+void mf_get_outline(OpcodeContext& ctx)
+{
+    Object* object = ctx.arg(0).asObject();
+    ctx.setReturn(object != nullptr ? object->outline : 0);
 }
 
 void mf_set_outline(OpcodeContext& ctx)

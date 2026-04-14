@@ -1,5 +1,7 @@
 #include "dinput.h"
 
+#include "game.h"
+#include "sfall_script_hooks.h"
 #include "svga.h"
 
 namespace fallout {
@@ -164,6 +166,23 @@ void handleMouseEvent(SDL_Event* event)
     if (event->type == SDL_MOUSEWHEEL) {
         gMouseWheelDeltaX += event->wheel.x;
         gMouseWheelDeltaY += event->wheel.y;
+    }
+
+    if (gGameLoaded && (event->type == SDL_MOUSEBUTTONDOWN || event->type == SDL_MOUSEBUTTONUP)) {
+        int button = -1;
+        if (event->button.button == SDL_BUTTON_LEFT) {
+            button = 0;
+        } else if (event->button.button == SDL_BUTTON_RIGHT) {
+            button = 1;
+        } else if (event->button.button == SDL_BUTTON_MIDDLE) {
+            button = 2;
+        }
+
+        if (button >= 0) {
+            bool pressed = (event->type == SDL_MOUSEBUTTONDOWN);
+            ScriptHookCall hook(HOOK_MOUSECLICK, 1, { pressed ? 1 : 0, button });
+            hook.call();
+        }
     }
 }
 
