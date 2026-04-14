@@ -339,6 +339,18 @@ endif()
 
 if(APPLE)
     if(IOS)
+        # Per-developer signing overrides. Set in a local file that's gitignored,
+        # e.g. `ios-signing.cmake` alongside CMakeLists.txt, or pass via -D:
+        #   set(IOS_BUNDLE_IDENTIFIER "com.yourname.fallout2-ce")
+        #   set(IOS_DEVELOPMENT_TEAM "ABCDE12345")
+        if(EXISTS "${CMAKE_SOURCE_DIR}/ios-signing.cmake")
+            include("${CMAKE_SOURCE_DIR}/ios-signing.cmake")
+        endif()
+        set(IOS_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
+            CACHE STRING "iOS bundle identifier (override in ios-signing.cmake)")
+        set(IOS_DEVELOPMENT_TEAM ""
+            CACHE STRING "iOS Apple Developer Team ID (override in ios-signing.cmake)")
+
         set(RESOURCES
             "os/ios/AppIcon.xcassets"
             "os/ios/LaunchScreen.storyboard"
@@ -350,7 +362,9 @@ if(APPLE)
         set_target_properties(${EXECUTABLE_NAME} PROPERTIES
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/ios/Info.plist"
             XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
-            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
+            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}"
+            XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${IOS_DEVELOPMENT_TEAM}"
+            XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
             XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
         )
 
