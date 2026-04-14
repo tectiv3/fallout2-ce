@@ -147,7 +147,7 @@ static struct SfallOpcodeInfo opcodeInfoArray[] = {
     { 0x19d, "set_sfall_global" },
     { 0x19e, "get_sfall_global_int" },
     { 0x19f, "get_sfall_global_float" },
-    { 0x1a5, "inc_npc_level" },
+    // { 0x1a5, "inc_npc_level" }, // implemented
     { 0x1aa, "set_xp_mod" },
     { 0x1ac, "get_ini_setting" },
     { 0x1bb, "set_fake_perk" },
@@ -229,7 +229,7 @@ static struct SfallOpcodeInfo opcodeInfoArray[] = {
     { 0x23b, "modified_ini" },
     { 0x23c, "get_sfall_args" },
     { 0x23d, "set_sfall_arg" },
-    { 0x241, "get_npc_level" },
+    // { 0x241, "get_npc_level" }, // implemented
     { 0x242, "set_critter_skill_points" },
     { 0x243, "get_critter_skill_points" },
     { 0x24e, "substr" },

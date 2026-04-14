@@ -512,6 +512,8 @@ int _show_death(Object* obj, int anim)
         itemDropAll(obj, obj->tile);
     }
 
+    scriptHooks_OnDeath(obj);
+
     tileWindowRefreshRect(&dirtyRect, obj->elevation);
 
     return 0;

@@ -412,3 +412,12 @@ AGENTS.md
 CLAUDE.md
 GEMINI.md
 opencode.json
+
+# Project-specific ignores
+data
+.serena
+.claude/settings.local.json
+master.dat
+critter.dat
+mods
+FO2tweaks

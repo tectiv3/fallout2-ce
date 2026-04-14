@@ -740,6 +740,7 @@ void scriptHooks_BarterPrice(BarterPriceContext* ctx)
     }
 }
 
+<<<<<<< HEAD
 /*
     HOOK_ADJUSTFID
 

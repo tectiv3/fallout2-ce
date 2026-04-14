@@ -257,12 +257,6 @@ void mf_get_flags(OpcodeContext& ctx)
     ctx.setReturn(object->flags);
 }
 
-void mf_get_outline(OpcodeContext& ctx)
-{
-    Object* object = ctx.arg(0).asObject();
-    ctx.setReturn(object->outline);
-}
-
 void mf_get_sfall_arg_at(OpcodeContext& ctx)
 {
     const int argNum = ctx.arg(0).asInt();
@@ -471,6 +465,12 @@ void mf_set_flags(OpcodeContext& ctx)
     int flags = ctx.arg(1).asInt();
 
     object->flags = flags;
+}
+
+void mf_get_outline(OpcodeContext& ctx)
+{
+    Object* object = ctx.arg(0).asObject();
+    ctx.setReturn(object != nullptr ? object->outline : 0);
 }
 
 void mf_set_outline(OpcodeContext& ctx)

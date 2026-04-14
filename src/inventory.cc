@@ -890,7 +890,8 @@ int inventoryComputeCritterFid(Object* critter, int basePid, Object* rightHandIt
         }
     }
 
-    return buildFid(OBJ_TYPE_CRITTER, inventoryFid, anim, animationCode, rotation);
+    int fid = buildFid(OBJ_TYPE_CRITTER, inventoryFid, anim, animationCode, rotation);
+    return scriptHooks_AdjustFid(fid, fid);
 }
 
 // inventory_msg_init
