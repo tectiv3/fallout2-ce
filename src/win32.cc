@@ -77,6 +77,13 @@ int main(int argc, char* argv[])
     CloseHandle(GNW95_mutex);
 #endif
 
+#if __APPLE__ && TARGET_OS_IOS
+    // UIApplicationMain never returns, so returning from SDL_main leaves the
+    // app suspended with a frozen window. The user's explicit Exit choice
+    // means we actually want the process gone.
+    exit(rc);
+#endif
+
     return rc;
 }
 

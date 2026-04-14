@@ -7,7 +7,7 @@ IOS_ARCHIVE      := $(IOS_BUILD_DIR)/fallout2-ce.xcarchive
 IOS_EXPORT_DIR   := $(IOS_BUILD_DIR)/export
 IOS_EXPORT_PLIST := ExportOptions.plist
 
-.PHONY: ipa ipa-full ios-configure ios-configure-full ios-archive ios-export ios-clean
+.PHONY: ipa ipa-full ios-configure ios-configure-full ios-archive ios-export ios-clean ios-serve ios-serve-lan ipa-full-serve ipa-serve ipa-serve-lan
 
 # Slim IPA: bundles mods + configs only. User supplies master.dat /
 # critter.dat / data/sound in the iPad's Documents via Files app.
@@ -39,11 +39,31 @@ ios-archive:
 		archive
 
 ios-export: ios-archive
-	rm -rf $(IOS_EXPORT_DIR)
+	rm -rf $(IOS_EXPORT_DIR).tmp
 	xcodebuild -exportArchive \
 		-archivePath $(IOS_ARCHIVE) \
-		-exportPath $(IOS_EXPORT_DIR) \
+		-exportPath $(IOS_EXPORT_DIR).tmp \
 		-exportOptionsPlist $(IOS_EXPORT_PLIST)
+	rm -rf $(IOS_EXPORT_DIR)
+	mv $(IOS_EXPORT_DIR).tmp $(IOS_EXPORT_DIR)
 
 ios-clean:
 	rm -rf $(IOS_ARCHIVE) $(IOS_EXPORT_DIR)
+
+# Serve the already-built IPA over OTA via a Tailscale funnel (public HTTPS).
+ios-serve:
+	@scripts/serve-ipa.sh
+
+# Serve the already-built IPA over OTA on the local LAN only (mkcert HTTPS).
+# One-time setup: trust the mkcert root CA on the iPad (script prints how).
+ios-serve-lan:
+	@scripts/serve-ipa-lan.sh
+
+# Build the full IPA (includes game data) and immediately serve it for OTA.
+ipa-full-serve: ipa-full ios-serve
+
+# Build the slim IPA and immediately serve it for OTA.
+ipa-serve: ipa ios-serve
+
+# Build the slim IPA and serve it over the LAN only.
+ipa-serve-lan: ipa ios-serve-lan

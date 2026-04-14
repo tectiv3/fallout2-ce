@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install @@APP_TITLE@@</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 3em auto; padding: 0 1em; color: #222; }
+    h1 { font-size: 1.4em; }
+    .btn { display: block; background: #007aff; color: #fff; text-align: center; padding: 1em; border-radius: 10px; text-decoration: none; font-weight: 600; margin: 2em 0; }
+    .meta { color: #666; font-size: .9em; }
+    .note { background: #fff3cd; border: 1px solid #ffe08a; padding: .8em 1em; border-radius: 8px; font-size: .9em; }
+  </style>
+</head>
+<body>
+  <h1>Install @@APP_TITLE@@</h1>
+  <p class="meta">@@BUNDLE_ID@@ &middot; v@@BUNDLE_VERSION@@</p>
+  <a class="btn" href="itms-services://?action=download-manifest&amp;url=@@TUNNEL_URL@@/manifest.plist">Install on iPad</a>
+  <p class="note"><strong>Must open in Safari.</strong> If this page opened inside Telegram / Slack / Mail, long-press the button and pick &ldquo;Open in Safari&rdquo; &mdash; in-app browsers silently fail the OTA handoff.</p>
+</body>
+</html>

@@ -397,6 +397,9 @@ if(APPLE)
             COMMAND ${CMAKE_COMMAND} -E copy
                 "${CMAKE_SOURCE_DIR}/files/f2_res.ini"
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.ini"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                "${CMAKE_SOURCE_DIR}/files/f2_res.dat"
+                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.dat"
             COMMENT "Bundling mods and default configs into app"
         )
 
