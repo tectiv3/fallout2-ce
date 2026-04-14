@@ -366,7 +366,7 @@ if(APPLE)
                 "${CMAKE_SOURCE_DIR}/critter.dat"
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/critter.dat"
             COMMAND rsync -a --delete
-                "${CMAKE_SOURCE_DIR}/mods/"
+                "${CMAKE_SOURCE_DIR}/files/mods/"
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/mods/"
             COMMAND ${CMAKE_COMMAND} -E copy
                 "${CMAKE_SOURCE_DIR}/files/fallout2.cfg"

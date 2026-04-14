@@ -383,6 +383,20 @@ void _mouse_info()
         static int prevx;
         static int prevy;
 
+        // Three-finger swipe down → ESC (opens options menu). Mirrors the iOS
+        // idiom of a downward three-finger gesture revealing system UI.
+        if (gesture.type == kPan && gesture.numberOfTouches == 3) {
+            static int threeFingerStartY;
+            if (gesture.state == kBegan) {
+                threeFingerStartY = gesture.y;
+            } else if (gesture.state == kEnded) {
+                if (gesture.y - threeFingerStartY > screenGetHeight() / 3) {
+                    enqueueInputEvent(KEY_ESCAPE);
+                }
+            }
+            return;
+        }
+
         switch (gesture.type) {
         case kTap:
             if (mouseDeviceUsesRelativeMode()) {

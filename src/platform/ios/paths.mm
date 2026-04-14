@@ -121,6 +121,14 @@ void iOSSeedDocumentsFromBundle()
         SDL_snprintf(pathBuf, sizeof(pathBuf), "%smods", documentsPath);
         iOSEnsureDir(pathBuf);
 
+        // sfall's mods_order.txt is auto-generated only if absent. An empty
+        // file left behind from a previously-broken seed would suppress that.
+        SDL_snprintf(pathBuf, sizeof(pathBuf), "%smods/mods_order.txt", documentsPath);
+        struct stat modsOrderStat;
+        if (stat(pathBuf, &modsOrderStat) == 0 && modsOrderStat.st_size == 0) {
+            unlink(pathBuf);
+        }
+
         SDL_snprintf(pathBuf, sizeof(pathBuf), "%sdata", documentsPath);
         iOSEnsureDir(pathBuf);
 
@@ -145,14 +153,10 @@ void iOSSeedDocumentsFromBundle()
             iOSCopyIfMissing(srcPath, dstPath);
         }
 
-        NSString* bundleModsDir = [NSString stringWithFormat:@"%smods", [NSString stringWithUTF8String:bundlePath]];
+        NSString* bundleModsDir = [NSString stringWithFormat:@"%smods", bundlePath];
         NSFileManager* fm = [NSFileManager defaultManager];
         NSArray<NSString*>* entries = [fm contentsOfDirectoryAtPath:bundleModsDir error:nil];
         for (NSString* name in entries) {
-            if ([name isEqualToString:@"mods_order.txt"]) {
-                continue;
-            }
-
             NSString* ext = [[name pathExtension] lowercaseString];
             const char* nameCStr = [name fileSystemRepresentation];
             if (nameCStr == nullptr) {
@@ -166,7 +170,7 @@ void iOSSeedDocumentsFromBundle()
 
             if ([ext isEqualToString:@"dat"]) {
                 iOSRefreshSymlink(srcPath, dstPath);
-            } else if ([ext isEqualToString:@"ini"]) {
+            } else if ([ext isEqualToString:@"ini"] || [name isEqualToString:@"mods_order.txt"]) {
                 iOSCopyIfMissing(srcPath, dstPath);
             }
         }

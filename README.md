@@ -74,13 +74,45 @@ $ mv app /Applications/Fallout2
 
 ### iOS
 
-> **NOTE**: See Android note on controls.
+This fork bundles all required game data into the app itself, so you don't need to side-load `master.dat`/`critter.dat` or any mods onto the device after install. Building is done from source with your own signing certificate.
 
-- Download `fallout2-ce.ipa`. Use sideloading applications ([AltStore](https://altstore.io/) or [Sideloadly](https://sideloadly.io/)) to install it to your device. Alternatively you can always build from source with your own signing certificate.
+**What gets bundled into the IPA:**
 
-- Run the game once. You'll see error message saying "Couldn't find/load text fonts". This step is needed for iOS to expose the game via File Sharing feature.
+- `master.dat`, `critter.dat` (copy them into the repo root before building)
+- Default configs from `files/`: `fallout2.cfg`, `ddraw.ini`, `f2_res.ini`, `f2_res.dat`
+- Mods from `files/mods/` (drop any `.dat` / `.ini` you want to ship in here)
 
-- Use Finder (macOS Catalina and later) or iTunes (Windows and macOS Mojave or earlier) to copy `master.dat`, `critter.dat`, `patch000.dat`, and `data` folder to "Fallout 2" app ([how-to](https://support.apple.com/HT210598)). Watch for file names - keep (or make) them lowercased (see [Configuration](#configuration)).
+On first launch the app seeds its Documents folder from the bundle: `.dat` files are symlinked (zero duplication), `.ini` files and `mods_order.txt` are copy-once so your edits in Documents persist across app updates.
+
+**Build & run:**
+
+```console
+$ cmake --preset ios
+$ open out/build/ios/fallout2-ce.xcodeproj
+```
+
+In Xcode: set your Team (free Apple ID works for personal-device deploys) and pick a unique Bundle Identifier. Pick your iPad as the destination and Cmd+R. For a packaged unsigned IPA you can re-sign with AltStore/Sideloadly:
+
+```console
+$ cmake --build --preset ios-release
+$ cd out/build/ios && cpack -C RelWithDebInfo
+```
+
+**Settings (iOS Settings app → Fallout II):**
+
+- **Resolution** — pick a preset or `Native` (auto-detect from device screen). Overrides `resolution_x`/`resolution_y` in `fallout2.cfg` at launch.
+- **Scale** — integer 1..4. Overrides `scale` in `fallout2.cfg`.
+
+**Controls on iPad:**
+
+- One-finger tap → left click; hold → left button held.
+- Two-finger tap → right click (cycles cursor mode between walk and attack).
+- One-finger drag → scroll map / windows.
+- Two-finger drag → mouse wheel.
+- **Three-finger swipe down → ESC** (opens options / main menu). Fallout 2's menu is normally bound to the Esc key; this gesture is the touch equivalent.
+- A Bluetooth keyboard works for everything else (numbered dialog choices, quick save, etc.).
+
+Saves live in the app's Documents folder and persist across reinstalls on the same Bundle ID. To drop custom `.dat` overrides or edit `fallout2.cfg` manually, use Finder → your iPad → Files → Fallout 2.
 
 ### Browser
 
