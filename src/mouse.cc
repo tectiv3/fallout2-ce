@@ -383,15 +383,19 @@ void _mouse_info()
         static int prevx;
         static int prevy;
 
-        // Three-finger swipe down → ESC (opens options menu). Mirrors the iOS
-        // idiom of a downward three-finger gesture revealing system UI.
-        if (gesture.type == kPan && gesture.numberOfTouches == 3) {
-            static int threeFingerStartY;
+        // Multi-finger swipe-down gestures for keyboard-less iPad play:
+        //   3 fingers → ESC (options menu)
+        //   4 fingers → F6 (quicksave)
+        if (gesture.type == kPan
+            && (gesture.numberOfTouches == 3 || gesture.numberOfTouches == 4)) {
+            static int swipeStartY;
+            static int swipeFingers;
             if (gesture.state == kBegan) {
-                threeFingerStartY = gesture.y;
+                swipeStartY = gesture.y;
+                swipeFingers = gesture.numberOfTouches;
             } else if (gesture.state == kEnded) {
-                if (gesture.y - threeFingerStartY > screenGetHeight() / 3) {
-                    enqueueInputEvent(KEY_ESCAPE);
+                if (gesture.y - swipeStartY > screenGetHeight() / 3) {
+                    enqueueInputEvent(swipeFingers == 4 ? KEY_F6 : KEY_ESCAPE);
                 }
             }
             return;

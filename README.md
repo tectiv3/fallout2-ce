@@ -110,7 +110,8 @@ $ cd out/build/ios && cpack -C RelWithDebInfo
 - One-finger drag → scroll map / windows.
 - Two-finger drag → mouse wheel.
 - **Three-finger swipe down → ESC** (opens options / main menu). Fallout 2's menu is normally bound to the Esc key; this gesture is the touch equivalent.
-- A Bluetooth keyboard works for everything else (numbered dialog choices, quick save, etc.).
+- **Four-finger swipe down → F6** (quicksave).
+- A Bluetooth keyboard works for everything else (numbered dialog choices, load game, etc.).
 
 Saves live in the app's Documents folder and persist across reinstalls on the same Bundle ID. To drop custom `.dat` overrides or edit `fallout2.cfg` manually, use Finder → your iPad → Files → Fallout 2.
 
