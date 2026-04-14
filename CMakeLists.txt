@@ -339,17 +339,18 @@ endif()
 
 if(APPLE)
     if(IOS)
-        # Per-developer signing overrides. Set in a local file that's gitignored,
-        # e.g. `ios-signing.cmake` alongside CMakeLists.txt, or pass via -D:
+        # Per-developer signing overrides. Set in a gitignored local file:
         #   set(IOS_BUNDLE_IDENTIFIER "com.yourname.fallout2-ce")
         #   set(IOS_DEVELOPMENT_TEAM "ABCDE12345")
         if(EXISTS "${CMAKE_SOURCE_DIR}/ios-signing.cmake")
             include("${CMAKE_SOURCE_DIR}/ios-signing.cmake")
         endif()
-        set(IOS_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
-            CACHE STRING "iOS bundle identifier (override in ios-signing.cmake)")
-        set(IOS_DEVELOPMENT_TEAM ""
-            CACHE STRING "iOS Apple Developer Team ID (override in ios-signing.cmake)")
+        if(NOT DEFINED IOS_BUNDLE_IDENTIFIER)
+            set(IOS_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce")
+        endif()
+        if(NOT DEFINED IOS_DEVELOPMENT_TEAM)
+            set(IOS_DEVELOPMENT_TEAM "")
+        endif()
 
         set(RESOURCES
             "os/ios/AppIcon.xcassets"
@@ -366,7 +367,10 @@ if(APPLE)
             XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}"
             XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${IOS_DEVELOPMENT_TEAM}"
             XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
+            XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Apple Development"
             XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
+            XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
+            XCODE_ATTRIBUTE_SKIP_INSTALL "NO"
         )
 
         set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
@@ -431,7 +435,11 @@ if(APPLE)
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout II")
     endif()
 
-    set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout2-ce")
+    if(IOS AND DEFINED IOS_BUNDLE_IDENTIFIER)
+        set(MACOSX_BUNDLE_GUI_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}")
+    else()
+        set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout2-ce")
+    endif()
     set(MACOSX_BUNDLE_SHORT_VERSION_STRING "1.3.0")
     set(MACOSX_BUNDLE_BUNDLE_VERSION "1.3.0")
 endif()
