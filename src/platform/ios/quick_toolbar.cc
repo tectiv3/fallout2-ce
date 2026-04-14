@@ -21,17 +21,14 @@ namespace fallout {
 namespace {
 
 constexpr int kSkillButtonCount = 8;
-constexpr int kSkillButtonWidth = 36;
-constexpr int kSkillButtonHeight = 24;
-constexpr int kEndTurnButtonWidth = 38;
-constexpr int kEndTurnButtonHeight = 22;
+constexpr int kButtonWidth = 36;
+constexpr int kButtonHeight = 24;
 constexpr int kDividerGap = 8;
 constexpr int kToolbarHeight = 30;
 constexpr int kToolbarBottomMargin = 10;
 
-// Injected into the engine input queue when the end-turn region is tapped.
-// Matches the keyCode the belt's gEndTurnButton fires; the combat loop consumes
-// it identically regardless of source.
+// Matches gEndTurnButton's keyCode in interface.cc — the combat loop's input
+// dispatch consumes 32 as end-turn regardless of where it originated.
 constexpr int kEndTurnKeyCode = 32;
 
 struct SkillEntry {
@@ -57,16 +54,18 @@ int gToolbarWidth = 0;
 bool gShown = false;
 bool gEndTurnVisible = false;
 
-FrmImage gEndTurnFrm;
-
-int skillButtonX(int index)
+int toolbarWidthFor(bool endTurnVisible)
 {
-    return index * kSkillButtonWidth;
+    int width = kSkillButtonCount * kButtonWidth;
+    if (endTurnVisible) {
+        width += kDividerGap + kButtonWidth;
+    }
+    return width;
 }
 
-int endTurnRegionX()
+int endTurnButtonX()
 {
-    return kSkillButtonCount * kSkillButtonWidth + kDividerGap;
+    return kSkillButtonCount * kButtonWidth + kDividerGap;
 }
 
 void fillRect(unsigned char* buffer, int pitch, int x, int y, int w, int h, unsigned char color)
@@ -87,66 +86,30 @@ void drawCenteredLabel(unsigned char* buffer, int pitch, int x, int y, int w, in
     fontDrawText(buffer + ty * pitch + tx, text, pitch, pitch, color);
 }
 
-void paintSkillButton(int index)
+// Dark panel with a soft highlight on top/left and shadow on bottom/right so
+// buttons read as raised without dominating the frame. Palette entries are
+// sampled from the intensity table of white so they stay consistent with the
+// game's palette across lighting changes.
+void paintPanelButton(unsigned char* buffer, int pitch, int x, int y, int w, int h, const char* label)
 {
-    unsigned char* buffer = windowGetBuffer(gToolbarWindow);
-    if (buffer == nullptr) {
-        return;
-    }
-
-    int x = skillButtonX(index);
-    int y = (kToolbarHeight - kSkillButtonHeight) / 2;
-
-    // Dark panel with a soft highlight on top/left and shadow on bottom/right
-    // so the button reads as raised without shouting. Palette indices chosen
-    // off the intensity table of white (0x7FFF) so they track the game's
-    // gamma-corrected greys.
     unsigned char panel = intensityColorTable[_colorTable[32767]][22];
     unsigned char highlight = intensityColorTable[_colorTable[32767]][55];
     unsigned char shadow = _colorTable[0];
 
-    fillRect(buffer, gToolbarWidth, x, y, kSkillButtonWidth, kSkillButtonHeight, panel);
-    fillRect(buffer, gToolbarWidth, x, y, kSkillButtonWidth, 1, highlight);
-    fillRect(buffer, gToolbarWidth, x, y, 1, kSkillButtonHeight, highlight);
-    fillRect(buffer, gToolbarWidth, x, y + kSkillButtonHeight - 1, kSkillButtonWidth, 1, shadow);
-    fillRect(buffer, gToolbarWidth, x + kSkillButtonWidth - 1, y, 1, kSkillButtonHeight, shadow);
+    fillRect(buffer, pitch, x, y, w, h, panel);
+    fillRect(buffer, pitch, x, y, w, 1, highlight);
+    fillRect(buffer, pitch, x, y, 1, h, highlight);
+    fillRect(buffer, pitch, x, y + h - 1, w, 1, shadow);
+    fillRect(buffer, pitch, x + w - 1, y, 1, h, shadow);
 
-    drawCenteredLabel(buffer, gToolbarWidth, x, y, kSkillButtonWidth, kSkillButtonHeight, kSkills[index].label, _colorTable[32747]);
+    drawCenteredLabel(buffer, pitch, x, y, w, h, label, _colorTable[32747]);
 }
 
-void paintEndTurnRegion()
+void paintDivider(unsigned char* buffer)
 {
-    unsigned char* buffer = windowGetBuffer(gToolbarWindow);
-    if (buffer == nullptr) {
-        return;
-    }
-
-    int x = endTurnRegionX();
-    int y = (kToolbarHeight - kEndTurnButtonHeight) / 2;
-
-    // Always clear first so leaving combat erases any previously-painted sprite.
-    fillRect(buffer, gToolbarWidth, x, y, kEndTurnButtonWidth, kEndTurnButtonHeight, _colorTable[0]);
-
-    if (gEndTurnVisible && gEndTurnFrm.isLocked()) {
-        blitBufferToBuffer(gEndTurnFrm.getData(),
-            gEndTurnFrm.getWidth(), gEndTurnFrm.getHeight(),
-            gEndTurnFrm.getWidth(),
-            buffer + y * gToolbarWidth + x,
-            gToolbarWidth);
-    }
-}
-
-void paintDivider()
-{
-    unsigned char* buffer = windowGetBuffer(gToolbarWindow);
-    if (buffer == nullptr) {
-        return;
-    }
-
-    int x = kSkillButtonCount * kSkillButtonWidth + kDividerGap / 2;
-    unsigned char color = gEndTurnVisible ? _colorTable[16895] : _colorTable[0];
+    int x = kSkillButtonCount * kButtonWidth + kDividerGap / 2;
     for (int row = 4; row < kToolbarHeight - 4; row++) {
-        buffer[row * gToolbarWidth + x] = color;
+        buffer[row * gToolbarWidth + x] = _colorTable[16895];
     }
 }
 
@@ -161,13 +124,44 @@ void paintAll()
 
     int oldFont = fontGetCurrent();
     fontSetCurrent(101);
-    for (int i = 0; i < kSkillButtonCount; i++) {
-        paintSkillButton(i);
-    }
-    fontSetCurrent(oldFont);
 
-    paintDivider();
-    paintEndTurnRegion();
+    int buttonY = (kToolbarHeight - kButtonHeight) / 2;
+    for (int i = 0; i < kSkillButtonCount; i++) {
+        paintPanelButton(buffer, gToolbarWidth, i * kButtonWidth, buttonY, kButtonWidth, kButtonHeight, kSkills[i].label);
+    }
+
+    if (gEndTurnVisible) {
+        paintDivider(buffer);
+        paintPanelButton(buffer, gToolbarWidth, endTurnButtonX(), buttonY, kButtonWidth, kButtonHeight, "END");
+    }
+
+    fontSetCurrent(oldFont);
+}
+
+// The toolbar window is sized to whatever content is currently visible so the
+// black window background never bleeds into an "empty" end-turn slot. A combat
+// state flip therefore destroys and recreates the window at the new size.
+void createWindow()
+{
+    gToolbarWidth = toolbarWidthFor(gEndTurnVisible);
+    gToolbarX = (screenGetWidth() - gToolbarWidth) / 2;
+    gToolbarY = screenGetHeight() - INTERFACE_BAR_HEIGHT - kToolbarHeight - kToolbarBottomMargin;
+
+    gToolbarWindow = windowCreate(gToolbarX, gToolbarY, gToolbarWidth, kToolbarHeight, _colorTable[0], WINDOW_HIDDEN);
+    if (gToolbarWindow == -1) {
+        return;
+    }
+
+    paintAll();
+}
+
+void destroyWindow()
+{
+    if (gToolbarWindow == -1) {
+        return;
+    }
+    windowDestroy(gToolbarWindow);
+    gToolbarWindow = -1;
 }
 
 } // namespace
@@ -177,35 +171,15 @@ void quickToolbarInit()
     if (gToolbarWindow != -1) {
         return;
     }
-
-    gToolbarWidth = kSkillButtonCount * kSkillButtonWidth + kDividerGap + kEndTurnButtonWidth;
-    gToolbarX = (screenGetWidth() - gToolbarWidth) / 2;
-    gToolbarY = screenGetHeight() - INTERFACE_BAR_HEIGHT - kToolbarHeight - kToolbarBottomMargin;
-
-    gToolbarWindow = windowCreate(gToolbarX, gToolbarY, gToolbarWidth, kToolbarHeight, _colorTable[0], WINDOW_HIDDEN);
-    if (gToolbarWindow == -1) {
-        return;
-    }
-
-    int endTurnFid = buildFid(OBJ_TYPE_INTERFACE, 105, 0, 0, 0);
-    gEndTurnFrm.lock(endTurnFid);
-
     gEndTurnVisible = isInCombat();
-    paintAll();
-    windowRefresh(gToolbarWindow);
+    createWindow();
 }
 
 void quickToolbarFree()
 {
-    if (gToolbarWindow == -1) {
-        return;
-    }
-
-    windowDestroy(gToolbarWindow);
-    gToolbarWindow = -1;
+    destroyWindow();
     gShown = false;
     gEndTurnVisible = false;
-    gEndTurnFrm.unlock();
 }
 
 void quickToolbarShow()
@@ -233,19 +207,19 @@ bool quickToolbarIsWindow(int windowId)
 
 void quickToolbarUpdateCombatState()
 {
-    if (gToolbarWindow == -1) {
-        return;
-    }
-
     bool shouldShow = isInCombat();
-    if (shouldShow == gEndTurnVisible) {
+    if (shouldShow == gEndTurnVisible && gToolbarWindow != -1) {
         return;
     }
 
+    bool wasShown = gShown;
+    destroyWindow();
+    gShown = false;
     gEndTurnVisible = shouldShow;
-    paintDivider();
-    paintEndTurnRegion();
-    windowRefresh(gToolbarWindow);
+    createWindow();
+    if (wasShown) {
+        quickToolbarShow();
+    }
 }
 
 bool quickToolbarContainsPoint(int x, int y)
@@ -265,16 +239,14 @@ bool quickToolbarHandleTap(int x, int y)
 
     int localX = x - gToolbarX;
 
-    // Skill region.
-    if (localX < kSkillButtonCount * kSkillButtonWidth) {
-        int index = localX / kSkillButtonWidth;
+    if (localX < kSkillButtonCount * kButtonWidth) {
+        int index = localX / kButtonWidth;
         gameHandleSkilldexResult(kSkills[index].skilldexRc);
         return true;
     }
 
-    // End-turn region — only reactive during combat.
-    int endX = endTurnRegionX();
-    if (gEndTurnVisible && localX >= endX && localX < endX + kEndTurnButtonWidth) {
+    int endX = endTurnButtonX();
+    if (gEndTurnVisible && localX >= endX && localX < endX + kButtonWidth) {
         enqueueInputEvent(kEndTurnKeyCode);
         return true;
     }
