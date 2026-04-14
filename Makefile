@@ -56,11 +56,11 @@ ios-export: ios-archive
 ios-clean:
 	rm -rf $(IOS_ARCHIVE) $(IOS_EXPORT_DIR)
 
-# Serve the already-built IPA over OTA on LAN (mkcert HTTPS) AND via Tailscale
-# Funnel (public HTTPS) simultaneously. Ctrl-C stops both.
-# LAN setup: trust the mkcert root CA on the iPad once (script prints how).
+# Serve the already-built IPA over OTA: one HTTPS listener on the LAN with a
+# mkcert cert, plus a Tailscale Funnel-backed public URL, both fed from the
+# same files. Index page exposes the mkcert root CA as a plain download link.
 ios-serve:
-	@scripts/serve-ipa-both.sh
+	@scripts/serve-ipa.sh
 
 # Build the full IPA (includes game data) and immediately serve it for OTA.
 ipa-full-serve: ipa-full ios-serve
