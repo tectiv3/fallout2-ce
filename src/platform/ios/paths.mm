@@ -144,7 +144,7 @@ void iOSSeedDocumentsFromBundle()
 
         // Read-only game data lives in the bundle; refresh symlinks each
         // launch so the bundle path (changes on app updates) stays current.
-        const char* bundleSymlinks[] = { "master.dat", "critter.dat", "data/sound" };
+        const char* bundleSymlinks[] = { "master.dat", "critter.dat", "f2_res.dat", "data/sound" };
         for (size_t i = 0; i < SDL_arraysize(bundleSymlinks); ++i) {
             char srcPath[PATH_MAX];
             char dstPath[PATH_MAX];
