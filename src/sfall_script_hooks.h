@@ -269,6 +269,7 @@ int scriptHooks_UseItemOn(Object* user, Object* target, Object* objUsed);
 void scriptHooks_ComputeDamage(Attack* attack, int numRounds, int baseDmgMult);
 void scriptHooks_BarterPrice(BarterPriceContext* ctx);
 void scriptHooks_OnDeath(Object* critter);
+int scriptHooks_AdjustFid(Object* critter, int baseFid);
 
 } // namespace fallout
 

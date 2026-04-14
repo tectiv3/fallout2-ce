@@ -511,4 +511,30 @@ void scriptHooks_OnDeath(Object* critter)
     hook.call();
 }
 
+/*
+    HOOK_ADJUSTFID
+
+    Runs when the game calculates what FID to display for a critter in UI
+    (inventory, barter, loot). Used by npc_armor mod.
+
+    Critter arg0 - the critter whose FID is being calculated
+    int     arg1 - the base FID being displayed
+
+    int     ret0 - override FID (or -1 to keep base)
+*/
+int scriptHooks_AdjustFid(Object* critter, int baseFid)
+{
+    ScriptHookCall hook(HOOK_ADJUSTFID, 1, { critter, baseFid });
+    hook.call();
+
+    if (hook.numReturnValues() > 0) {
+        int overrideFid = hook.getReturnValueAt(0).asInt();
+        if (overrideFid >= 0) {
+            return overrideFid;
+        }
+    }
+
+    return baseFid;
+}
+
 } // namespace fallout
