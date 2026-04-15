@@ -186,6 +186,211 @@ void iOSSeedDocumentsFromBundle()
     }
 }
 
+#pragma mark - iCloud savegame sync
+
+// The sync is a directory mirror keyed on per-file mtime — newer wins.
+// This gives reasonable single-device backup behavior and "good enough"
+// cross-device sync without requiring NSMetadataQuery, CKRecord, or conflict UI.
+// The tradeoffs: a save in progress when the app is backgrounded may push a
+// half-written slot (next successful save heals it); two devices writing the
+// same slot concurrently lose one side silently.
+
+static id s_iOSICloudBackgroundObserver = nil;
+
+// Ubiquity container's Documents/savegame URL. Returns nil if iCloud Drive
+// isn't available (user signed out, entitlement missing, container not yet
+// provisioned on first launch — URLForUbiquityContainerIdentifier can block
+// briefly and then return nil until the daemon catches up).
+static NSURL* iOSICloudSavegamesURL()
+{
+    NSFileManager* fm = [NSFileManager defaultManager];
+    NSURL* container = [fm URLForUbiquityContainerIdentifier:nil];
+    if (container == nil) {
+        return nil;
+    }
+    NSURL* saves = [[container URLByAppendingPathComponent:@"Documents"]
+                    URLByAppendingPathComponent:@"savegame"];
+    [fm createDirectoryAtURL:saves
+ withIntermediateDirectories:YES
+                  attributes:nil
+                       error:nil];
+    return saves;
+}
+
+static NSURL* iOSLocalSavegamesURL()
+{
+    const char* docs = iOSGetDocumentsPath();
+    if (docs == nullptr) {
+        return nil;
+    }
+    NSString* path = [NSString stringWithFormat:@"%sdata/savegame", docs];
+    return [NSURL fileURLWithPath:path isDirectory:YES];
+}
+
+static NSDate* iOSMtime(NSURL* url)
+{
+    NSDictionary* attrs = [[NSFileManager defaultManager]
+        attributesOfItemAtPath:url.path error:nil];
+    return attrs[NSFileModificationDate];
+}
+
+// True if this iCloud item is a placeholder whose content hasn't been
+// downloaded yet. For non-ubiquity items, always NO.
+static BOOL iOSIsUndownloadedPlaceholder(NSURL* url)
+{
+    NSString* status = nil;
+    [url getResourceValue:&status
+                   forKey:NSURLUbiquitousItemDownloadingStatusKey
+                    error:nil];
+    if (status == nil) {
+        return NO;
+    }
+    return ![status isEqualToString:NSURLUbiquitousItemDownloadingStatusCurrent]
+        && ![status isEqualToString:NSURLUbiquitousItemDownloadingStatusDownloaded];
+}
+
+// Copy src over dst (replacing), creating intermediate dst dirs. Uses
+// NSFileCoordinator because either endpoint may be inside the ubiquity
+// container.
+static BOOL iOSCopyCoordinated(NSURL* src, NSURL* dst)
+{
+    NSFileManager* fm = [NSFileManager defaultManager];
+    [fm createDirectoryAtURL:[dst URLByDeletingLastPathComponent]
+ withIntermediateDirectories:YES
+                  attributes:nil
+                       error:nil];
+
+    NSFileCoordinator* coord = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+    __block BOOL ok = NO;
+    __block NSError* copyErr = nil;
+    NSError* coordErr = nil;
+    [coord coordinateReadingItemAtURL:src
+                              options:NSFileCoordinatorReadingWithoutChanges
+                     writingItemAtURL:dst
+                              options:NSFileCoordinatorWritingForReplacing
+                                error:&coordErr
+                           byAccessor:^(NSURL* s, NSURL* d) {
+        [fm removeItemAtURL:d error:nil];
+        ok = [fm copyItemAtURL:s toURL:d error:&copyErr];
+    }];
+    if (coordErr != nil || !ok) {
+        NSError* e = copyErr ?: coordErr;
+        SDL_Log("iCloud sync: copy %s -> %s failed: %s",
+            src.path.UTF8String, dst.path.UTF8String,
+            e.localizedDescription.UTF8String);
+        return NO;
+    }
+    return YES;
+}
+
+// Recursively mirror srcRoot into dstRoot, copying files whose src mtime is
+// strictly newer than dst mtime (or where dst doesn't exist). Placeholders on
+// the cloud side are kicked off for download and skipped this run.
+static void iOSMirrorNewer(NSURL* srcRoot, NSURL* dstRoot, BOOL srcIsCloud)
+{
+    NSFileManager* fm = [NSFileManager defaultManager];
+    NSArray<NSURLResourceKey>* keys = @[
+        NSURLIsDirectoryKey,
+        NSURLContentModificationDateKey,
+        NSURLUbiquitousItemDownloadingStatusKey,
+    ];
+    NSDirectoryEnumerator<NSURL*>* en = [fm enumeratorAtURL:srcRoot
+                                 includingPropertiesForKeys:keys
+                                                    options:0
+                                               errorHandler:^BOOL(NSURL* url, NSError* err) {
+        SDL_Log("iCloud sync: enum %s: %s",
+            url.path.UTF8String, err.localizedDescription.UTF8String);
+        return YES;
+    }];
+
+    NSString* srcBase = srcRoot.path;
+    NSUInteger copied = 0;
+    NSUInteger skipped = 0;
+    for (NSURL* srcURL in en) {
+        NSNumber* isDir = nil;
+        [srcURL getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:nil];
+        if (isDir.boolValue) {
+            continue;
+        }
+
+        if (srcIsCloud && iOSIsUndownloadedPlaceholder(srcURL)) {
+            [fm startDownloadingUbiquitousItemAtURL:srcURL error:nil];
+            skipped++;
+            continue;
+        }
+
+        NSString* rel = [srcURL.path substringFromIndex:srcBase.length + 1];
+        NSURL* dstURL = [dstRoot URLByAppendingPathComponent:rel];
+
+        NSDate* srcDate = iOSMtime(srcURL);
+        NSDate* dstDate = iOSMtime(dstURL);
+        if (dstDate != nil && srcDate != nil
+            && [srcDate compare:dstDate] != NSOrderedDescending) {
+            continue;
+        }
+
+        if (iOSCopyCoordinated(srcURL, dstURL)) {
+            copied++;
+        }
+    }
+    SDL_Log("iCloud sync: %s mirror done — %lu copied, %lu placeholders pending",
+        srcIsCloud ? "pull" : "push",
+        (unsigned long)copied, (unsigned long)skipped);
+}
+
+static void iOSPushSavesToICloud()
+{
+    @autoreleasepool {
+        NSURL* local = iOSLocalSavegamesURL();
+        NSURL* cloud = iOSICloudSavegamesURL();
+        if (local == nil || cloud == nil) {
+            return;
+        }
+        UIApplication* app = [UIApplication sharedApplication];
+        __block UIBackgroundTaskIdentifier task = UIBackgroundTaskInvalid;
+        task = [app beginBackgroundTaskWithName:@"iCloudSavesPush"
+                              expirationHandler:^{
+            SDL_Log("iCloud sync: push background task expired");
+            [app endBackgroundTask:task];
+            task = UIBackgroundTaskInvalid;
+        }];
+        iOSMirrorNewer(local, cloud, /*srcIsCloud=*/NO);
+        if (task != UIBackgroundTaskInvalid) {
+            [app endBackgroundTask:task];
+        }
+    }
+}
+
+void iOSInitICloudSync()
+{
+    @autoreleasepool {
+        NSURL* cloud = iOSICloudSavegamesURL();
+        NSURL* local = iOSLocalSavegamesURL();
+        if (cloud == nil || local == nil) {
+            SDL_Log("iCloud sync: unavailable (no ubiquity container)");
+            return;
+        }
+
+        [[NSFileManager defaultManager] createDirectoryAtURL:local
+                                 withIntermediateDirectories:YES
+                                                  attributes:nil
+                                                       error:nil];
+
+        SDL_Log("iCloud sync: pulling saves from %s", cloud.path.UTF8String);
+        iOSMirrorNewer(cloud, local, /*srcIsCloud=*/YES);
+
+        if (s_iOSICloudBackgroundObserver == nil) {
+            s_iOSICloudBackgroundObserver = [[NSNotificationCenter defaultCenter]
+                addObserverForName:UIApplicationDidEnterBackgroundNotification
+                            object:nil
+                             queue:[NSOperationQueue mainQueue]
+                        usingBlock:^(NSNotification*) {
+                iOSPushSavesToICloud();
+            }];
+        }
+    }
+}
+
 void iOSApplyUserDefaultsToSettings()
 {
     @autoreleasepool {

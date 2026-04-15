@@ -48,6 +48,7 @@ int main(int argc, char* argv[])
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
     iOSSeedDocumentsFromBundle();
     chdir(iOSGetDocumentsPath());
+    iOSInitICloudSync();
 #endif
 
 #if __APPLE__ && TARGET_OS_OSX
