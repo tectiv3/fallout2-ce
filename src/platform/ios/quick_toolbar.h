@@ -14,7 +14,6 @@ void quickToolbarFree();
 void quickToolbarShow();
 void quickToolbarHide();
 bool quickToolbarIsWindow(int windowId);
-void quickToolbarUpdateCombatState();
 
 // True when the screen point falls within the toolbar window rect. Used by the
 // touch dispatcher to route taps to the toolbar without going through the
@@ -32,7 +31,6 @@ inline void quickToolbarFree() { }
 inline void quickToolbarShow() { }
 inline void quickToolbarHide() { }
 inline bool quickToolbarIsWindow(int) { return false; }
-inline void quickToolbarUpdateCombatState() { }
 inline bool quickToolbarContainsPoint(int, int) { return false; }
 inline bool quickToolbarHandleTap(int, int) { return false; }
 

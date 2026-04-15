@@ -833,7 +833,6 @@ void interfaceBarEnable()
 
         buttonEnable(gEndTurnButton);
         buttonEnable(gEndCombatButton);
-        quickToolbarUpdateCombatState();
         displayMonitorEnable();
 
         gInterfaceBarEnabled = true;
@@ -856,7 +855,6 @@ void interfaceBarDisable()
         }
         buttonDisable(gEndTurnButton);
         buttonDisable(gEndCombatButton);
-        quickToolbarUpdateCombatState();
         gInterfaceBarEnabled = false;
     }
 }
@@ -1514,7 +1512,6 @@ void interfaceBarEndButtonsRenderGreenLights()
     if (gInterfaceBarEndButtonsIsVisible) {
         buttonEnable(gEndTurnButton);
         buttonEnable(gEndCombatButton);
-        quickToolbarUpdateCombatState();
 
         FrmImage lightsFrmImage;
         // endltgrn.frm - green lights around end turn/combat window
@@ -1535,7 +1532,6 @@ void interfaceBarEndButtonsRenderRedLights()
     if (gInterfaceBarEndButtonsIsVisible) {
         buttonDisable(gEndTurnButton);
         buttonDisable(gEndCombatButton);
-        quickToolbarUpdateCombatState();
 
         FrmImage lightsFrmImage;
         // endltred.frm - red lights around end turn/combat window
