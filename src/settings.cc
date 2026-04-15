@@ -180,7 +180,7 @@ void initSettingsRegistry(bool isMapper)
         {
             { GAME_CONFIG_RESOLUTION_X_KEY, settings.screen.resolution_x, clamp(640, 7680) },
             { GAME_CONFIG_RESOLUTION_Y_KEY, settings.screen.resolution_y, clamp(480, 4320) },
-            { GAME_CONFIG_WINDOWED_KEY, settings.screen.windowed },
+            { GAME_CONFIG_WINDOWED_KEY, settings.screen.windowed, clamp(0, 2) },
             { GAME_CONFIG_SCALE_KEY, settings.screen.scale, clamp(1, 4) },
         });
 

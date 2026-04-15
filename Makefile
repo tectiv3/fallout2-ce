@@ -7,7 +7,14 @@ IOS_ARCHIVE      := $(IOS_BUILD_DIR)/fallout2-ce.xcarchive
 IOS_EXPORT_DIR   := $(IOS_BUILD_DIR)/export
 IOS_EXPORT_PLIST := ExportOptions.plist
 
-.PHONY: ipa ipa-full ipa-lean-serve ios-version-bump ios-configure ios-configure-full ios-configure-lean ios-archive ios-export ios-clean ios-serve ipa-full-serve ipa-serve
+MAC_BUILD_DIR    := out/build/macos
+MAC_XCODEPROJ    := $(MAC_BUILD_DIR)/fallout2-ce.xcodeproj
+MAC_APP_NAME     := Fallout II Community Edition.app
+MAC_APP          := $(MAC_BUILD_DIR)/Release/$(MAC_APP_NAME)
+MAC_DIST_DIR     := $(MAC_BUILD_DIR)/dist
+MAC_ZIP          := $(MAC_DIST_DIR)/fallout2-ce-macos.zip
+
+.PHONY: ipa ipa-full ipa-lean-serve ios-version-bump ios-configure ios-configure-full ios-configure-lean ios-archive ios-export ios-clean ios-serve ipa-full-serve ipa-serve mac mac-configure mac-build mac-zip mac-clean
 
 # Slim IPA: bundles mods + configs only. User supplies master.dat /
 # critter.dat / data/sound in the iPad's Documents via Files app.
@@ -76,3 +83,32 @@ ipa-serve: ipa ios-serve
 # a working install (master.dat, critter.dat, data/, mods/). Builds, signs,
 # and serves in one shot.
 ipa-lean-serve: ios-version-bump ios-configure-lean ios-export ios-serve
+
+# macOS Release build. Codesigning happens automatically via CMake POST_BUILD
+# when MAC_SIGNING_IDENTITY is set in ios-signing.cmake (Developer ID Application
+# is the natural choice for local personal builds — gives stable TCC grants
+# across rebuilds). Without that variable, the .app builds unsigned.
+mac: mac-zip
+	@echo ""
+	@echo "Mac app ready: $(MAC_APP)"
+	@echo "Distributable zip: $(MAC_ZIP)"
+
+mac-configure:
+	cmake --preset macos
+
+mac-build: mac-configure
+	xcodebuild \
+		-project $(MAC_XCODEPROJ) \
+		-scheme fallout2-ce \
+		-configuration Release \
+		-destination 'platform=macOS' \
+		-skipPackagePluginValidation \
+		build
+
+mac-zip: mac-build
+	mkdir -p $(MAC_DIST_DIR)
+	rm -f $(MAC_ZIP)
+	cd $(MAC_BUILD_DIR)/Release && ditto -c -k --sequesterRsrc --keepParent "$(MAC_APP_NAME)" "$(CURDIR)/$(MAC_ZIP)"
+
+mac-clean:
+	rm -rf $(MAC_BUILD_DIR)/Release $(MAC_DIST_DIR)
