@@ -164,7 +164,7 @@ void initSettingsRegistry(bool isMapper)
 #define SECT screen
     SETTING_P(resolution_x, clamp(640, 7680));
     SETTING_P(resolution_y, clamp(480, 4320));
-    SETTING(windowed);
+    SETTING_P(windowed, clamp(0, 2));
     SETTING_P(scale, clamp(1, 4));
 #undef SECT
 

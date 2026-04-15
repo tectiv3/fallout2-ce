@@ -35,7 +35,11 @@ struct SystemSettings {
 struct ScreenSettings {
     int resolution_x = 640;
     int resolution_y = 480;
-    bool windowed = false;
+    // 0 = exclusive fullscreen (SDL_WINDOW_FULLSCREEN, mode switch — old
+    // default), 1 = windowed, 2 = borderless desktop fullscreen
+    // (SDL_WINDOW_FULLSCREEN_DESKTOP, no mode switch). Old bool configs
+    // (0/1) migrate naturally since the numeric meaning is preserved.
+    int windowed = 0;
     int scale = 1;
 };
 

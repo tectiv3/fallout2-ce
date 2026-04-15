@@ -118,7 +118,7 @@ int _GNW95_init_mode_ex(int width, int height, int bpp)
         height /= scale;
     }
 
-    if (_GNW95_init_window(width, height, !settings.screen.windowed, scale) == -1) {
+    if (_GNW95_init_window(width, height, settings.screen.windowed, scale) == -1) {
         return -1;
     }
 
@@ -155,15 +155,17 @@ int _init_vesa_mode(int width, int height)
 }
 
 // 0x4CAEDC
-int _GNW95_init_window(int width, int height, bool fullscreen, int scale)
+int _GNW95_init_window(int width, int height, int windowMode, int scale)
 {
     if (gSdlWindow == nullptr) {
         SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
 
         Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_ALLOW_HIGHDPI;
 
-        if (fullscreen) {
+        if (windowMode == 0) {
             windowFlags |= SDL_WINDOW_FULLSCREEN;
+        } else if (windowMode == 2) {
+            windowFlags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
         }
 
         gSdlWindow = SDL_CreateWindow(gProgramWindowTitle, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width * scale, height * scale, windowFlags);
