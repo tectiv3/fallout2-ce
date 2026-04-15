@@ -22,6 +22,7 @@ void lsgDevSetLoadGameSlot(int slot);
 int lsgGetTotalSlotCount();
 bool _isLoadingGame();
 void lsgInit();
+
 int MapDirErase(const char* path, const char* extension);
 int _MapDirEraseFile_(const char* relativePath, const char* fileName);
 

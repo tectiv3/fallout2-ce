@@ -3475,6 +3475,7 @@ int inventoryEquipFunc(Object* critter, Object* item, int handIndex, bool animat
         return -1;
     }
 
+
     if (animate) {
         if (!isoIsDisabled()) {
             reg_anim_begin(ANIMATION_REQUEST_RESERVED);
@@ -3638,13 +3639,14 @@ int inventoryUnequipFunc(Object* critter, int hand, bool animate)
         item = critterGetItem1(critter);
     }
 
-    // Notify scripts before mutating the OBJECT_IN_ANY_HAND flag..
+    // Notify scripts before mutating the OBJECT_IN_ANY_HAND flag.
     if (item != nullptr) {
         InvenSlot invenSlot = hand == HAND_RIGHT ? InvenSlot::RightHand : InvenSlot::LeftHand;
         if (!scriptHooks_InvenWield(critter, item, invenSlot, 0, 0)) {
             return -1;
         }
     }
+
 
     if (item) {
         item->flags &= ~OBJECT_IN_ANY_HAND;

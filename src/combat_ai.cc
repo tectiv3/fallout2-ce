@@ -2042,6 +2042,10 @@ Object* _ai_search_inven_weap(Object* critter, bool checkRequiredActionPoints, O
             continue;
         }
 
+        if (!scriptHooks_CanUseWeapon(true, critter, weapon, HIT_MODE_RIGHT_WEAPON_PRIMARY)) {
+            continue;
+        }
+
         if (weaponGetAttackTypeForHitMode(weapon, HIT_MODE_RIGHT_WEAPON_PRIMARY) == ATTACK_TYPE_RANGED) {
             if (!weaponHasAmmoForAttack(weapon, HIT_MODE_RIGHT_WEAPON_PRIMARY)) {
                 if (!aiHaveAmmo(critter, weapon, nullptr)) {

@@ -740,7 +740,6 @@ void scriptHooks_BarterPrice(BarterPriceContext* ctx)
     }
 }
 
-<<<<<<< HEAD
 /*
     HOOK_ADJUSTFID
 
@@ -825,6 +824,56 @@ bool scriptHooks_CanUseWeapon(bool result, Object* critter, Object* weapon, int 
 
     if (hook.numReturnValues() <= 0) {
         return result;
+    }
+    return hook.getReturnValueAt(0).asInt() != 0;
+}
+
+/*
+    HOOK_INVENWIELD
+
+    Runs when an item is equipped or unequipped — for any critter, including
+    NPC auto-equip via "Use Best Armor". This is the npc_armor mod's primary
+    trigger for swapping an NPC's display sprite.
+
+    Critter arg0 - the critter wielding/unwielding
+    Item    arg1 - the item being moved
+    int     arg2 - INVEN_TYPE_WORN (0), INVEN_TYPE_RIGHT_HAND (1), or
+                   INVEN_TYPE_LEFT_HAND (2)
+    int     arg3 - 1 on wield, 0 on unwield
+
+    int     ret0 - non-zero allows the action; 0 vetoes it
+*/
+bool scriptHooks_InvenWield(Object* critter, Object* item, int slot, int isWield)
+{
+    ScriptHookCall hook(HOOK_INVENWIELD, 1, { critter, item, slot, isWield });
+    hook.call();
+
+    if (hook.numReturnValues() <= 0) {
+        return true;
+    }
+    return hook.getReturnValueAt(0).asInt() != 0;
+}
+
+/*
+    HOOK_CANUSEWEAPON
+
+    Runs while the engine's AI is evaluating whether a critter can use a
+    weapon. The npc_armor mod uses this to block weapons whose anim code
+    isn't supported by the swapped-armor sprite set.
+
+    Critter arg0 - the critter being evaluated
+    Item    arg1 - the candidate weapon
+    int     arg2 - hand slot (1 right, 2 left)
+
+    int     ret0 - non-zero permits use; 0 forbids it
+*/
+bool scriptHooks_CanUseWeapon(Object* critter, Object* weapon, int slot)
+{
+    ScriptHookCall hook(HOOK_CANUSEWEAPON, 1, { critter, weapon, slot });
+    hook.call();
+
+    if (hook.numReturnValues() <= 0) {
+        return true;
     }
     return hook.getReturnValueAt(0).asInt() != 0;
 }

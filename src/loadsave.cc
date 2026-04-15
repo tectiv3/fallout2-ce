@@ -219,6 +219,7 @@ static int _slot_cursor = 0;
 
 static int gDevLoadGameSlot = -1;
 
+
 // 0x5193BC
 static bool _quick_done = false;
 
