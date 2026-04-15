@@ -11,6 +11,7 @@
 
 #include "../../settings.h"
 #include "../../sfall_config.h"
+#include "quick_toolbar.h"
 
 // Modelled after SDL_AndroidGetExternalStoragePath.
 const char* iOSGetDocumentsPath()
@@ -658,6 +659,9 @@ void iOSApplyUserDefaultsToSettings()
             @"resolution_preset" : @"native",
             @"resolution_scale" : @1,
             @"skip_intro_movies" : @NO,
+            @"damage_formula" : @0,
+            @"combat_display_bonus_damage" : @NO,
+            @"quick_toolbar_visible" : @YES,
         }];
 
         NSString* preset = [defaults stringForKey:@"resolution_preset"];
@@ -705,5 +709,24 @@ void iOSApplyUserDefaultsToSettings()
             SFALL_CONFIG_MISC_KEY,
             SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY,
             skipIntros);
+
+        // DamageFormula: 0 vanilla, 1/2 Glovz variants, 5 YAAM. combat.cc
+        // caches this at combatInit — which runs after settingsInit, so
+        // poking gSfallConfig here takes effect for this session.
+        int damageFormula = (int)[defaults integerForKey:@"damage_formula"];
+        if (damageFormula != 0 && damageFormula != 1 && damageFormula != 2 && damageFormula != 5) {
+            damageFormula = 0;
+        }
+        fallout::configSetInt(&fallout::gSfallConfig,
+            SFALL_CONFIG_MISC_KEY,
+            SFALL_CONFIG_DAMAGE_MOD_FORMULA_KEY,
+            damageFormula);
+
+        fallout::configSetInt(&fallout::gSfallConfig,
+            SFALL_CONFIG_MISC_KEY,
+            SFALL_CONFIG_DISPLAY_BONUS_DAMAGE_KEY,
+            [defaults boolForKey:@"combat_display_bonus_damage"] ? 1 : 0);
+
+        fallout::quickToolbarSetEnabled([defaults boolForKey:@"quick_toolbar_visible"]);
     }
 }

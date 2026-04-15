@@ -90,6 +90,62 @@
             <key>DefaultValue</key>
             <false/>
         </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Gameplay</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSMultiValueSpecifier</string>
+            <key>Title</key>
+            <string>Damage formula</string>
+            <key>Key</key>
+            <string>damage_formula</string>
+            <key>DefaultValue</key>
+            <integer>0</integer>
+            <key>Titles</key>
+            <array>
+                <string>Vanilla</string>
+                <string>Glovz</string>
+                <string>Glovz + damage mod</string>
+                <string>Haenlomal's YAAM</string>
+            </array>
+            <key>Values</key>
+            <array>
+                <integer>0</integer>
+                <integer>1</integer>
+                <integer>2</integer>
+                <integer>5</integer>
+            </array>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Title</key>
+            <string>Show bonus damage in combat</string>
+            <key>Key</key>
+            <string>combat_display_bonus_damage</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSGroupSpecifier</string>
+            <key>Title</key>
+            <string>Interface</string>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Title</key>
+            <string>Show quick skill toolbar</string>
+            <key>Key</key>
+            <string>quick_toolbar_visible</string>
+            <key>DefaultValue</key>
+            <true/>
+        </dict>
     </array>
 </dict>
 </plist>
