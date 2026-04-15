@@ -395,16 +395,15 @@ if(APPLE)
         set(MACOSX_BUNDLE_BUNDLE_NAME "${EXECUTABLE_NAME}")
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout 2")
 
-        # Always bundle: mods + default configs (small, user-agnostic).
+        # Always bundle: default configs (small, user-agnostic).
+        # Optionally bundle: mods (toggle via -DIOS_BUNDLE_MODS=OFF or `make ipa-lean-serve`).
         # Optionally bundle: master.dat/critter.dat/data/sound (~500MB,
         # requires user to own the game). Toggle via -DIOS_BUNDLE_ASSETS=ON
         # or `make ipa-full`.
+        option(IOS_BUNDLE_MODS "Bundle files/mods/ into the IPA" ON)
         option(IOS_BUNDLE_ASSETS "Bundle master.dat, critter.dat, and data/sound into the IPA" OFF)
 
         add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
-            COMMAND rsync -a --delete
-                "${CMAKE_SOURCE_DIR}/files/mods/"
-                "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/mods/"
             COMMAND ${CMAKE_COMMAND} -E copy
                 "${CMAKE_SOURCE_DIR}/files/fallout2.cfg"
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/fallout2.cfg"
@@ -417,8 +416,17 @@ if(APPLE)
             COMMAND ${CMAKE_COMMAND} -E copy
                 "${CMAKE_SOURCE_DIR}/files/f2_res.dat"
                 "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/f2_res.dat"
-            COMMENT "Bundling mods and default configs into app"
+            COMMENT "Bundling default configs into app"
         )
+
+        if(IOS_BUNDLE_MODS)
+            add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+                COMMAND rsync -a --delete
+                    "${CMAKE_SOURCE_DIR}/files/mods/"
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>/mods/"
+                COMMENT "Bundling mods into app"
+            )
+        endif()
 
         if(IOS_BUNDLE_ASSETS)
             add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD

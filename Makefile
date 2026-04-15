@@ -7,7 +7,7 @@ IOS_ARCHIVE      := $(IOS_BUILD_DIR)/fallout2-ce.xcarchive
 IOS_EXPORT_DIR   := $(IOS_BUILD_DIR)/export
 IOS_EXPORT_PLIST := ExportOptions.plist
 
-.PHONY: ipa ipa-full ios-version-bump ios-configure ios-configure-full ios-archive ios-export ios-clean ios-serve ipa-full-serve ipa-serve
+.PHONY: ipa ipa-full ipa-lean-serve ios-version-bump ios-configure ios-configure-full ios-configure-lean ios-archive ios-export ios-clean ios-serve ipa-full-serve ipa-serve
 
 # Slim IPA: bundles mods + configs only. User supplies master.dat /
 # critter.dat / data/sound in the iPad's Documents via Files app.
@@ -33,6 +33,9 @@ ios-configure:
 
 ios-configure-full:
 	cmake --preset ios -DIOS_BUNDLE_ASSETS=ON
+
+ios-configure-lean:
+	cmake --preset ios -DIOS_BUNDLE_MODS=OFF -DIOS_BUNDLE_ASSETS=OFF
 
 ios-archive:
 	xcodebuild \
@@ -67,3 +70,9 @@ ipa-full-serve: ipa-full ios-serve
 
 # Build the slim IPA and immediately serve it for OTA.
 ipa-serve: ipa ios-serve
+
+# Lean IPA: bundles only default configs (fallout2.cfg, ddraw.ini, f2_res.ini,
+# f2_res.dat). No mods, no game data. Assumes the user's Documents already has
+# a working install (master.dat, critter.dat, data/, mods/). Builds, signs,
+# and serves in one shot.
+ipa-lean-serve: ios-version-bump ios-configure-lean ios-export ios-serve
