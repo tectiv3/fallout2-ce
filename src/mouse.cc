@@ -1,6 +1,7 @@
 #include "mouse.h"
 
 #include "color.h"
+#include "debug.h"
 #include "dinput.h"
 #include "input.h"
 #include "interface.h"
@@ -396,10 +397,10 @@ void _mouse_info()
                 swipeStartY = gesture.y;
             } else if (gesture.state == kEnded) {
                 int dy = gesture.y - swipeStartY;
-                SDL_Log("iOS gesture: 3-finger pan ended, dy=%d threshold=%d",
+                debugPrint("iOS gesture: 3-finger pan ended, dy=%d threshold=%d\n",
                     dy, screenGetHeight() / 3);
                 if (dy > screenGetHeight() / 3) {
-                    SDL_Log("iOS gesture: 3-finger swipe-down → ESC");
+                    debugPrint("iOS gesture: 3-finger swipe-down → ESC\n");
                     enqueueInputEvent(KEY_ESCAPE);
                 }
             }
@@ -412,7 +413,7 @@ void _mouse_info()
         // since iPadOS intercepts multi-finger vertical swipes.
         if (gesture.type == kLongPress && gesture.numberOfTouches == 4) {
             if (gesture.state == kBegan) {
-                SDL_Log("iOS gesture: 4-finger long-press → quicksave (F6)");
+                debugPrint("iOS gesture: 4-finger long-press → quicksave (F6)\n");
                 enqueueInputEvent(KEY_F6);
             }
             return;
@@ -428,13 +429,13 @@ void _mouse_info()
             ev.key.keysym.scancode = SDL_SCANCODE_LSHIFT;
             ev.key.keysym.sym = SDLK_LSHIFT;
             if (gesture.state == kBegan && !shiftHeld) {
-                SDL_Log("iOS gesture: 3-finger long-press began → Shift DOWN");
+                debugPrint("iOS gesture: 3-finger long-press began → Shift DOWN\n");
                 ev.type = SDL_KEYDOWN;
                 ev.key.state = SDL_PRESSED;
                 SDL_PushEvent(&ev);
                 shiftHeld = true;
             } else if (gesture.state == kEnded && shiftHeld) {
-                SDL_Log("iOS gesture: 3-finger long-press ended → Shift UP");
+                debugPrint("iOS gesture: 3-finger long-press ended → Shift UP\n");
                 ev.type = SDL_KEYUP;
                 ev.key.state = SDL_RELEASED;
                 SDL_PushEvent(&ev);
@@ -509,7 +510,7 @@ void _mouse_info()
                 // current cursor position. Teleport explicitly first, then
                 // click in place so the button under the finger receives it.
                 if (mouseDeviceUsesRelativeMode()) {
-                    SDL_Log("iOS gesture: HUD tap at (%d, %d)", gesture.x, gesture.y);
+                    debugPrint("iOS gesture: HUD tap at (%d, %d)\n", gesture.x, gesture.y);
                     _mouse_set_position(gesture.x, gesture.y);
                     if (gesture.numberOfTouches == 1) {
                         _mouse_simulate_input(0, 0, MOUSE_STATE_LEFT_BUTTON_DOWN);
