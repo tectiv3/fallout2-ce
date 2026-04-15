@@ -1,5 +1,9 @@
 #include "mouse.h"
 
+#if __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include "color.h"
 #include "debug.h"
 #include "dinput.h"
@@ -387,9 +391,9 @@ void _mouse_info()
         static int prevx;
         static int prevy;
 
-        // Multi-finger gestures for keyboard-less iPad play:
+        // Multi-finger gestures for keyboard-less touch play:
         //   3-finger swipe down → ESC (options menu)
-        //   4-finger tap        → F6  (quicksave, handled in kTap above)
+        //   4-finger long press → F6  (quicksave)
         //   3-finger long press → hold Left Shift (highlights interactables)
         if (gesture.type == kPan && gesture.numberOfTouches == 3) {
             static int swipeStartY;
@@ -458,7 +462,12 @@ void _mouse_info()
             // cursor stays put. Walking the window's button list by rect is
             // sufficient because every belt button is a solid sprite at its
             // advertised rect (no transparent-mask hit-tests).
+            //
+            // iOS-only: assumes a relative-mouse-mode HUD layout that does not
+            // exist on other touch platforms (Android), so we don't flip them
+            // into a tap-through model they weren't designed for.
             bool overHud = false;
+#if __APPLE__ && TARGET_OS_IOS
             if (mouseDeviceUsesRelativeMode() && gInterfaceBarWindow != -1) {
                 Rect hudRect;
                 if (windowGetRect(gInterfaceBarWindow, &hudRect) == 0
@@ -498,6 +507,7 @@ void _mouse_info()
                     goto tap_done;
                 }
             }
+#endif
 
             if (mouseDeviceUsesRelativeMode() && !overHud) {
                 if (gesture.numberOfTouches == 1) {
