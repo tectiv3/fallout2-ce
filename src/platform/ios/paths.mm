@@ -188,14 +188,28 @@ void iOSSeedDocumentsFromBundle()
 
 #pragma mark - iCloud savegame sync
 
-// The sync is a directory mirror keyed on per-file mtime — newer wins.
-// This gives reasonable single-device backup behavior and "good enough"
-// cross-device sync without requiring NSMetadataQuery, CKRecord, or conflict UI.
-// The tradeoffs: a save in progress when the app is backgrounded may push a
-// half-written slot (next successful save heals it); two devices writing the
-// same slot concurrently lose one side silently.
+// Pull side is slot-atomic: a Fallout 2 save is a directory (SLOT01/) with
+// multiple files (SAVE.DAT, AUTOMAP.DB, *.SAV). Pulling individual files as
+// they land would let the load menu observe half-hydrated slots and corrupt.
+// An NSMetadataQuery watches the cloud savegame scope; whenever a file's
+// download status changes, we re-evaluate every slot and only copy slots
+// where ALL files are Current/Downloaded. Newest-mtime-wins at slot level.
+//
+// Push side is per-file (iOSPushMirror): local files are always fully
+// materialized, so file-level comparison is fine and avoids a whole-slot
+// recopy when only one file changed.
 
 static id s_iOSICloudBackgroundObserver = nil;
+static NSMetadataQuery* s_iOSICloudQuery = nil;
+static id s_iOSICloudGatherObserver = nil;
+static id s_iOSICloudUpdateObserver = nil;
+// Slot indices (0-based) currently observed in cloud with at least one
+// placeholder file. Updated by iOSPullReadySlots whenever the metadata query
+// reports gather/update. Read by iOSICloudSlotIsDownloading.
+static NSMutableSet<NSNumber*>* s_iOSICloudDownloadingSlots = nil;
+// Set true by iOSPullReadySlots after a successful slot copy; consumed by the
+// load/save menu's frame loop via iOSICloudConsumeSavesDirty.
+static volatile bool s_iOSICloudSavesDirty = false;
 
 // Ubiquity container's Documents/savegame URL. Returns nil if iCloud Drive
 // isn't available (user signed out, entitlement missing, container not yet
@@ -234,21 +248,6 @@ static NSDate* iOSMtime(NSURL* url)
     return attrs[NSFileModificationDate];
 }
 
-// True if this iCloud item is a placeholder whose content hasn't been
-// downloaded yet. For non-ubiquity items, always NO.
-static BOOL iOSIsUndownloadedPlaceholder(NSURL* url)
-{
-    NSString* status = nil;
-    [url getResourceValue:&status
-                   forKey:NSURLUbiquitousItemDownloadingStatusKey
-                    error:nil];
-    if (status == nil) {
-        return NO;
-    }
-    return ![status isEqualToString:NSURLUbiquitousItemDownloadingStatusCurrent]
-        && ![status isEqualToString:NSURLUbiquitousItemDownloadingStatusDownloaded];
-}
-
 // Copy src over dst (replacing), creating intermediate dst dirs. Uses
 // NSFileCoordinator because either endpoint may be inside the ubiquity
 // container.
@@ -284,15 +283,15 @@ static BOOL iOSCopyCoordinated(NSURL* src, NSURL* dst)
 }
 
 // Recursively mirror srcRoot into dstRoot, copying files whose src mtime is
-// strictly newer than dst mtime (or where dst doesn't exist). Placeholders on
-// the cloud side are kicked off for download and skipped this run.
-static void iOSMirrorNewer(NSURL* srcRoot, NSURL* dstRoot, BOOL srcIsCloud)
+// strictly newer than dst mtime (or where dst doesn't exist). Used for
+// local -> cloud push only; the pull direction is slot-atomic and driven by
+// the metadata query (iOSPullReadySlots).
+static void iOSPushMirror(NSURL* srcRoot, NSURL* dstRoot)
 {
     NSFileManager* fm = [NSFileManager defaultManager];
     NSArray<NSURLResourceKey>* keys = @[
         NSURLIsDirectoryKey,
         NSURLContentModificationDateKey,
-        NSURLUbiquitousItemDownloadingStatusKey,
     ];
     NSDirectoryEnumerator<NSURL*>* en = [fm enumeratorAtURL:srcRoot
                                  includingPropertiesForKeys:keys
@@ -305,17 +304,10 @@ static void iOSMirrorNewer(NSURL* srcRoot, NSURL* dstRoot, BOOL srcIsCloud)
 
     NSString* srcBase = srcRoot.path;
     NSUInteger copied = 0;
-    NSUInteger skipped = 0;
     for (NSURL* srcURL in en) {
         NSNumber* isDir = nil;
         [srcURL getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:nil];
         if (isDir.boolValue) {
-            continue;
-        }
-
-        if (srcIsCloud && iOSIsUndownloadedPlaceholder(srcURL)) {
-            [fm startDownloadingUbiquitousItemAtURL:srcURL error:nil];
-            skipped++;
             continue;
         }
 
@@ -333,9 +325,7 @@ static void iOSMirrorNewer(NSURL* srcRoot, NSURL* dstRoot, BOOL srcIsCloud)
             copied++;
         }
     }
-    SDL_Log("iCloud sync: %s mirror done — %lu copied, %lu placeholders pending",
-        srcIsCloud ? "pull" : "push",
-        (unsigned long)copied, (unsigned long)skipped);
+    SDL_Log("iCloud sync: push done — %lu files copied", (unsigned long)copied);
 }
 
 static void iOSPushSavesToICloud()
@@ -354,11 +344,250 @@ static void iOSPushSavesToICloud()
             [app endBackgroundTask:task];
             task = UIBackgroundTaskInvalid;
         }];
-        iOSMirrorNewer(local, cloud, /*srcIsCloud=*/NO);
+        iOSPushMirror(local, cloud);
         if (task != UIBackgroundTaskInvalid) {
             [app endBackgroundTask:task];
         }
     }
+}
+
+// Newest content-modification date found in any file (recursive) under dir.
+// Returns nil if dir doesn't exist or is empty.
+static NSDate* iOSNewestMtimeInDir(NSURL* dir)
+{
+    NSFileManager* fm = [NSFileManager defaultManager];
+    NSDirectoryEnumerator<NSURL*>* en = [fm enumeratorAtURL:dir
+                                 includingPropertiesForKeys:@[
+                                     NSURLIsDirectoryKey,
+                                     NSURLContentModificationDateKey,
+                                 ]
+                                                    options:0
+                                               errorHandler:nil];
+    if (en == nil) {
+        return nil;
+    }
+    NSDate* newest = nil;
+    for (NSURL* u in en) {
+        NSNumber* isDir = nil;
+        [u getResourceValue:&isDir forKey:NSURLIsDirectoryKey error:nil];
+        if (isDir.boolValue) {
+            continue;
+        }
+        NSDate* mt = nil;
+        [u getResourceValue:&mt forKey:NSURLContentModificationDateKey error:nil];
+        if (mt == nil) {
+            continue;
+        }
+        if (newest == nil || [mt compare:newest] == NSOrderedDescending) {
+            newest = mt;
+        }
+    }
+    return newest;
+}
+
+// Atomic slot-directory replace: remove dst, copy src -> dst under a replacing
+// file coordinator. Safe even if dst doesn't exist yet.
+static BOOL iOSReplaceSlotAtomic(NSURL* src, NSURL* dst)
+{
+    NSFileManager* fm = [NSFileManager defaultManager];
+    [fm createDirectoryAtURL:[dst URLByDeletingLastPathComponent]
+ withIntermediateDirectories:YES
+                  attributes:nil
+                       error:nil];
+
+    NSFileCoordinator* coord = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
+    __block BOOL ok = NO;
+    __block NSError* opErr = nil;
+    NSError* coordErr = nil;
+    [coord coordinateReadingItemAtURL:src
+                              options:NSFileCoordinatorReadingWithoutChanges
+                     writingItemAtURL:dst
+                              options:NSFileCoordinatorWritingForReplacing
+                                error:&coordErr
+                           byAccessor:^(NSURL* s, NSURL* d) {
+        [fm removeItemAtURL:d error:nil];
+        ok = [fm copyItemAtURL:s toURL:d error:&opErr];
+    }];
+    if (coordErr != nil || !ok) {
+        NSError* e = opErr ?: coordErr;
+        SDL_Log("iCloud sync: slot replace %s -> %s failed: %s",
+            src.path.UTF8String, dst.path.UTF8String,
+            e.localizedDescription.UTF8String);
+        return NO;
+    }
+    return YES;
+}
+
+// Called whenever the metadata query reports gather/update. Groups current
+// query results by slot dir, kicks off downloads for any placeholder, and
+// atomically pulls slots whose files are all present and whose cloud copy
+// is strictly newer than the local copy.
+static void iOSPullReadySlots()
+{
+    if (s_iOSICloudQuery == nil) {
+        return;
+    }
+    NSURL* cloud = iOSICloudSavegamesURL();
+    NSURL* local = iOSLocalSavegamesURL();
+    if (cloud == nil || local == nil) {
+        return;
+    }
+
+    [s_iOSICloudQuery disableUpdates];
+    NSArray* snapshot = [s_iOSICloudQuery.results copy];
+    [s_iOSICloudQuery enableUpdates];
+
+    NSFileManager* fm = [NSFileManager defaultManager];
+    NSString* rootPath = cloud.path;
+    NSMutableDictionary<NSString*, NSMutableArray<NSMetadataItem*>*>* bySlot
+        = [NSMutableDictionary dictionary];
+    NSMutableSet<NSNumber*>* downloading = [NSMutableSet set];
+
+    for (NSMetadataItem* item in snapshot) {
+        NSURL* url = [item valueForAttribute:NSMetadataItemURLKey];
+        if (url == nil || ![url.path hasPrefix:rootPath]) {
+            continue;
+        }
+        NSString* rel = [url.path substringFromIndex:rootPath.length + 1];
+        NSArray<NSString*>* parts = [rel pathComponents];
+        if (parts.count < 2) {
+            // File directly under savegame/ — not inside a slot dir. Ignore;
+            // Fallout 2's layout only writes into SLOT<nn>/.
+            continue;
+        }
+        NSString* slot = parts[0];
+        NSMutableArray* arr = bySlot[slot];
+        if (arr == nil) {
+            arr = [NSMutableArray array];
+            bySlot[slot] = arr;
+        }
+        [arr addObject:item];
+    }
+
+    for (NSString* slotName in bySlot) {
+        NSArray<NSMetadataItem*>* items = bySlot[slotName];
+        BOOL allReady = YES;
+        NSDate* newestCloud = nil;
+
+        for (NSMetadataItem* item in items) {
+            NSString* status = [item valueForAttribute:NSMetadataUbiquitousItemDownloadingStatusKey];
+            BOOL ready = [status isEqualToString:NSMetadataUbiquitousItemDownloadingStatusCurrent]
+                || [status isEqualToString:NSMetadataUbiquitousItemDownloadingStatusDownloaded];
+            if (!ready) {
+                allReady = NO;
+                NSURL* url = [item valueForAttribute:NSMetadataItemURLKey];
+                if (url != nil) {
+                    [fm startDownloadingUbiquitousItemAtURL:url error:nil];
+                }
+                continue;
+            }
+            NSDate* mt = [item valueForAttribute:NSMetadataItemFSContentChangeDateKey];
+            if (mt != nil && (newestCloud == nil
+                    || [mt compare:newestCloud] == NSOrderedDescending)) {
+                newestCloud = mt;
+            }
+        }
+
+        // Slot dirs are SLOT01..SLOT10. Anything else (sfall extras, custom
+        // names) is left out of the per-slot UI tracking but still gets pulled.
+        NSNumber* slotIdx = nil;
+        if ([slotName length] == 6 && [[slotName substringToIndex:4] isEqualToString:@"SLOT"]) {
+            int n = [[slotName substringFromIndex:4] intValue];
+            if (n >= 1 && n <= 99) {
+                slotIdx = @(n - 1);
+            }
+        }
+
+        if (!allReady) {
+            if (slotIdx != nil) {
+                [downloading addObject:slotIdx];
+            }
+            continue;
+        }
+
+        NSURL* cloudSlot = [cloud URLByAppendingPathComponent:slotName];
+        NSURL* localSlot = [local URLByAppendingPathComponent:slotName];
+        NSDate* newestLocal = iOSNewestMtimeInDir(localSlot);
+
+        if (newestLocal != nil && newestCloud != nil
+            && [newestCloud compare:newestLocal] != NSOrderedDescending) {
+            continue;
+        }
+
+        if (iOSReplaceSlotAtomic(cloudSlot, localSlot)) {
+            SDL_Log("iCloud sync: pulled slot %s", slotName.UTF8String);
+            s_iOSICloudSavesDirty = true;
+        }
+    }
+
+    // Replace the downloading-slots set atomically (single-threaded — both
+    // the writer here and the reader in iOSICloudSlotIsDownloading run on the
+    // main thread).
+    s_iOSICloudDownloadingSlots = downloading;
+}
+
+bool iOSICloudSlotIsDownloading(int slotIndex)
+{
+    NSMutableSet<NSNumber*>* set = s_iOSICloudDownloadingSlots;
+    if (set == nil) {
+        return false;
+    }
+    return [set containsObject:@(slotIndex)];
+}
+
+bool iOSICloudConsumeSavesDirty()
+{
+    if (!s_iOSICloudSavesDirty) {
+        return false;
+    }
+    s_iOSICloudSavesDirty = false;
+    return true;
+}
+
+// Kicks off a long-lived NSMetadataQuery watching the cloud savegame subtree.
+// Stays alive for the process lifetime — it's how we learn about placeholder
+// downloads completing and about saves written by the other device while
+// we're running.
+static void iOSStartCloudQuery()
+{
+    if (s_iOSICloudQuery != nil) {
+        return;
+    }
+    NSURL* cloud = iOSICloudSavegamesURL();
+    if (cloud == nil) {
+        return;
+    }
+
+    NSMetadataQuery* q = [[NSMetadataQuery alloc] init];
+    q.searchScopes = @[ NSMetadataQueryUbiquitousDocumentsScope ];
+    // BEGINSWITH on the full cloud savegame path scopes results to our subtree
+    // even though the scope covers the whole ubiquity Documents/.
+    NSString* prefix = [cloud.path stringByAppendingString:@"/"];
+    q.predicate = [NSPredicate predicateWithFormat:@"%K BEGINSWITH %@",
+        NSMetadataItemPathKey, prefix];
+    q.valueListAttributes = @[
+        NSMetadataUbiquitousItemDownloadingStatusKey,
+        NSMetadataItemFSContentChangeDateKey,
+    ];
+
+    NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
+    s_iOSICloudGatherObserver = [nc addObserverForName:NSMetadataQueryDidFinishGatheringNotification
+                                                object:q
+                                                 queue:[NSOperationQueue mainQueue]
+                                            usingBlock:^(NSNotification*) {
+        SDL_Log("iCloud sync: initial gather complete — %lu items",
+            (unsigned long)[q resultCount]);
+        iOSPullReadySlots();
+    }];
+    s_iOSICloudUpdateObserver = [nc addObserverForName:NSMetadataQueryDidUpdateNotification
+                                                object:q
+                                                 queue:[NSOperationQueue mainQueue]
+                                            usingBlock:^(NSNotification*) {
+        iOSPullReadySlots();
+    }];
+
+    s_iOSICloudQuery = q;
+    [q startQuery];
 }
 
 void iOSInitICloudSync()
@@ -376,8 +605,8 @@ void iOSInitICloudSync()
                                                   attributes:nil
                                                        error:nil];
 
-        SDL_Log("iCloud sync: pulling saves from %s", cloud.path.UTF8String);
-        iOSMirrorNewer(cloud, local, /*srcIsCloud=*/YES);
+        SDL_Log("iCloud sync: watching %s", cloud.path.UTF8String);
+        iOSStartCloudQuery();
 
         if (s_iOSICloudBackgroundObserver == nil) {
             s_iOSICloudBackgroundObserver = [[NSNotificationCenter defaultCenter]
