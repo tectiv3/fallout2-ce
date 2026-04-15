@@ -302,7 +302,18 @@ static void iOSPushMirror(NSURL* srcRoot, NSURL* dstRoot)
         return YES;
     }];
 
-    NSString* srcBase = srcRoot.path;
+    // On iOS /var is a symlink to /private/var. NSDirectoryEnumerator sometimes
+    // yields canonical /private/var paths even when the root URL uses /var,
+    // making naive substringFromIndex slice mid-segment (e.g. "savegame" →
+    // "avegame" because /private is 8 chars). Canonicalize both sides and use
+    // an explicit slash-terminated prefix check so a partial match can't slip.
+    NSURL* resolvedRoot = srcRoot.URLByResolvingSymlinksInPath ?: srcRoot;
+    NSString* srcBase = resolvedRoot.path;
+    while ([srcBase hasSuffix:@"/"] && srcBase.length > 1) {
+        srcBase = [srcBase substringToIndex:srcBase.length - 1];
+    }
+    NSString* srcPrefix = [srcBase stringByAppendingString:@"/"];
+
     NSUInteger copied = 0;
     for (NSURL* srcURL in en) {
         NSNumber* isDir = nil;
@@ -311,7 +322,14 @@ static void iOSPushMirror(NSURL* srcRoot, NSURL* dstRoot)
             continue;
         }
 
-        NSString* rel = [srcURL.path substringFromIndex:srcBase.length + 1];
+        NSURL* resolved = srcURL.URLByResolvingSymlinksInPath ?: srcURL;
+        NSString* resolvedPath = resolved.path;
+        if (![resolvedPath hasPrefix:srcPrefix]) {
+            SDL_Log("iCloud sync: push skipping %s (outside %s)",
+                resolvedPath.UTF8String, srcPrefix.UTF8String);
+            continue;
+        }
+        NSString* rel = [resolvedPath substringFromIndex:srcPrefix.length];
         NSURL* dstURL = [dstRoot URLByAppendingPathComponent:rel];
 
         NSDate* srcDate = iOSMtime(srcURL);
@@ -438,17 +456,29 @@ static void iOSPullReadySlots()
     [s_iOSICloudQuery enableUpdates];
 
     NSFileManager* fm = [NSFileManager defaultManager];
-    NSString* rootPath = cloud.path;
+    // Canonicalize + slash-terminated prefix for the same reason as iOSPushMirror:
+    // /var vs /private/var mismatches would otherwise silently skip every item.
+    NSURL* resolvedCloud = cloud.URLByResolvingSymlinksInPath ?: cloud;
+    NSString* rootPath = resolvedCloud.path;
+    while ([rootPath hasSuffix:@"/"] && rootPath.length > 1) {
+        rootPath = [rootPath substringToIndex:rootPath.length - 1];
+    }
+    NSString* rootPrefix = [rootPath stringByAppendingString:@"/"];
     NSMutableDictionary<NSString*, NSMutableArray<NSMetadataItem*>*>* bySlot
         = [NSMutableDictionary dictionary];
     NSMutableSet<NSNumber*>* downloading = [NSMutableSet set];
 
     for (NSMetadataItem* item in snapshot) {
         NSURL* url = [item valueForAttribute:NSMetadataItemURLKey];
-        if (url == nil || ![url.path hasPrefix:rootPath]) {
+        if (url == nil) {
             continue;
         }
-        NSString* rel = [url.path substringFromIndex:rootPath.length + 1];
+        NSURL* resolvedUrl = url.URLByResolvingSymlinksInPath ?: url;
+        NSString* resolvedPath = resolvedUrl.path;
+        if (![resolvedPath hasPrefix:rootPrefix]) {
+            continue;
+        }
+        NSString* rel = [resolvedPath substringFromIndex:rootPrefix.length];
         NSArray<NSString*>* parts = [rel pathComponents];
         if (parts.count < 2) {
             // File directly under savegame/ — not inside a slot dir. Ignore;

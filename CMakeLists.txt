@@ -389,6 +389,14 @@ endif()
 
 if(APPLE)
     if(IOS)
+        # paths.mm uses ARC (static NSMutableSet / NSMetadataQuery storage
+        # must be __strong to survive the autorelease pool that created it).
+        # Only applied to this file because the rest of the codebase is C++.
+        set_source_files_properties(
+            "src/platform/ios/paths.mm"
+            PROPERTIES COMPILE_FLAGS "-fobjc-arc"
+        )
+
         # Per-developer signing overrides. Set in a gitignored local file:
         #   set(IOS_BUNDLE_IDENTIFIER "com.yourname.fallout2-ce")
         #   set(IOS_DEVELOPMENT_TEAM "ABCDE12345")

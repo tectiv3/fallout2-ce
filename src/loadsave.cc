@@ -234,6 +234,30 @@ static bool _automap_db_flag = false;
 // 0x5193CC
 static const char* _patches = nullptr;
 
+// Configurable savegame root. Two helpers because the engine has two save
+// path conventions in this file: xfile-mediated calls (which let xbase prepend
+// master_patches_path) and raw POSIX calls (which hardcode _patches\SAVEGAME).
+// Both helpers converge to the same physical file location regardless of
+// whether savegame_path is the default "SAVEGAME" or an absolute path.
+static const char* lsgSavegameDir()
+{
+    return settings.system.savegame_path.empty()
+        ? "SAVEGAME"
+        : settings.system.savegame_path.c_str();
+}
+
+static std::string lsgSavegameRoot()
+{
+    const char* dir = lsgSavegameDir();
+    if (dir[0] == '/' || dir[0] == '\\') {
+        return dir;
+    }
+    std::string root = _patches;
+    root += '\\';
+    root += dir;
+    return root;
+}
+
 // 0x5193EC
 static SaveGameHandler* _master_save_list[LOAD_SAVE_HANDLER_COUNT] = {
     _DummyFunc,
@@ -408,7 +432,7 @@ int lsgSaveGame(int mode)
                 _slot_cursor = 0;
             }
         }
-        snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+        snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
         strcat(_gmpath, "SAVE.DAT");
 
         _flptr = fileOpen(_gmpath, "rb");
@@ -487,7 +511,7 @@ int lsgSaveGame(int mode)
         // Save game directory:
         strcpy(_str1, getmsg(&gLoadSaveMessageList, &messageListItem, 107));
 
-        snprintf(_str2, sizeof(_str2), "\"%s\\\"", "SAVEGAME");
+        snprintf(_str2, sizeof(_str2), "\"%s\\\"", lsgSavegameDir());
 
         // TODO: Check.
         strcpy(_str2, getmsg(&gLoadSaveMessageList, &messageListItem, 108));
@@ -907,7 +931,7 @@ int lsgSaveGame(int mode)
                         // Save game directory:
                         strcpy(_str1, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 107));
 
-                        snprintf(_str2, sizeof(_str2), "\"%s\\\"", "SAVEGAME");
+                        snprintf(_str2, sizeof(_str2), "\"%s\\\"", lsgSavegameDir());
 
                         char text[260];
                         // Doesn't exist or is corrupted.
@@ -1132,7 +1156,7 @@ int lsgLoadGame(int mode)
         soundPlayFile("iisxxxx1");
         strcpy(_str0, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 106));
         strcpy(_str1, getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 107));
-        snprintf(_str2, sizeof(_str2), "\"%s\\\"", "SAVEGAME");
+        snprintf(_str2, sizeof(_str2), "\"%s\\\"", lsgSavegameDir());
         showDialogBox(_str0, body, 2, 169, 116, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
         lsgWindowFree(windowType);
         return -1;
@@ -1843,10 +1867,10 @@ static int lsgPerformSaveGame()
 
     backgroundSoundPause();
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s", _patches, "SAVEGAME");
+    snprintf(_gmpath, sizeof(_gmpath), "%s", lsgSavegameRoot().c_str());
     compat_mkdir(_gmpath);
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     compat_mkdir(_gmpath);
 
     strcat(_gmpath, "\\" PROTO_DIR_NAME);
@@ -1864,7 +1888,7 @@ static int lsgPerformSaveGame()
         debugPrint("\nLOADSAVE: Warning, can't backup save file!\n");
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     strcat(_gmpath, "SAVE.DAT");
 
     debugPrint("\nLOADSAVE: Save name: %s\n", _gmpath);
@@ -1873,7 +1897,7 @@ static int lsgPerformSaveGame()
     if (_flptr == nullptr) {
         debugPrint("\nLOADSAVE: ** Error opening save game for writing! **\n");
         _RestoreSave();
-        snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+        snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
         MapDirErase(_gmpath, "BAK");
         _partyMemberUnPrepSave();
         backgroundSoundResume();
@@ -1886,7 +1910,7 @@ static int lsgPerformSaveGame()
         debugPrint("LOADSAVE: Save file header size written: %d bytes.\n", fileTell(_flptr) - pos);
         fileClose(_flptr);
         _RestoreSave();
-        snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+        snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
         MapDirErase(_gmpath, "BAK");
         _partyMemberUnPrepSave();
         backgroundSoundResume();
@@ -1900,7 +1924,7 @@ static int lsgPerformSaveGame()
             debugPrint("\nLOADSAVE: ** Error writing save function #%d data! **\n", index);
             fileClose(_flptr);
             _RestoreSave();
-            snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+            snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
             MapDirErase(_gmpath, "BAK");
             _partyMemberUnPrepSave();
             backgroundSoundResume();
@@ -1915,7 +1939,7 @@ static int lsgPerformSaveGame()
     fileClose(_flptr);
 
     // SFALL: Save sfallgv.sav.
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     strcat(_gmpath, "sfallgv.sav");
 
     _flptr = fileOpen(_gmpath, "wb");
@@ -1927,7 +1951,7 @@ static int lsgPerformSaveGame()
         }
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     MapDirErase(_gmpath, "BAK");
 
 #if defined(__EMSCRIPTEN__)
@@ -1971,7 +1995,7 @@ static int lsgLoadGameInSlot(int slot)
     // SFALL: Call "before start" event
     sfallOnBeforeGameStart();
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     strcat(_gmpath, "SAVE.DAT");
 
     _flptr = fileOpen(_gmpath, "rb");
@@ -2015,7 +2039,7 @@ static int lsgLoadGameInSlot(int slot)
     fileClose(_flptr);
 
     // SFALL: Load sfallgv.sav.
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     strcat(_gmpath, "sfallgv.sav");
 
     _flptr = fileOpen(_gmpath, "rb");
@@ -2258,7 +2282,7 @@ static int _GetSlotList()
 {
     int index = 0;
     for (; index < saveLoadTotalSlots; index += 1) {
-        snprintf(_str, sizeof(_str), "%s\\%s%.2d\\%s", "SAVEGAME", "SLOT", index + 1, "SAVE.DAT");
+        snprintf(_str, sizeof(_str), "%s\\%s%.2d\\%s", lsgSavegameDir(), "SLOT", index + 1, "SAVE.DAT");
 
         int fileSize;
         if (dbGetFileSize(_str, &fileSize) != 0) {
@@ -2475,7 +2499,7 @@ static int _LoadTumbSlot(int slot)
         && _LSstatus[_slot_cursor] != SLOT_STATE_ERROR
         && _LSstatus[_slot_cursor] != SLOT_STATE_UNSUPPORTED_VERSION
         && _LSstatus[_slot_cursor] != SLOT_STATE_DOWNLOADING) {
-        snprintf(_str, sizeof(_str), "%s\\%s%.2d\\%s", "SAVEGAME", "SLOT", _slot_cursor + 1, "SAVE.DAT");
+        snprintf(_str, sizeof(_str), "%s\\%s%.2d\\%s", lsgSavegameDir(), "SLOT", _slot_cursor + 1, "SAVE.DAT");
         debugPrint(" Filename %s\n", _str);
 
         File* stream = fileOpen(_str, "rb");
@@ -2787,7 +2811,7 @@ static int _GameMap2Slot(File* stream)
             ? PROTO_DIR_NAME "\\" CRITTERS_DIR_NAME
             : PROTO_DIR_NAME "\\" ITEMS_DIR_NAME;
         snprintf(_str0, sizeof(_str0), "%s\\%s\\%s", _patches, critterItemPath, path);
-        snprintf(_str1, sizeof(_str1), "%s\\%s\\%s%.2d\\%s\\%s", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1, critterItemPath, path);
+        snprintf(_str1, sizeof(_str1), "%s\\%s%.2d\\%s\\%s", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1, critterItemPath, path);
         if (fileCopyCompressed(_str0, _str1) == -1) {
             return -1;
         }
@@ -2811,14 +2835,14 @@ static int _GameMap2Slot(File* stream)
         return -1;
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
 
     if (MapDirErase(_gmpath, "SAV") == -1) {
         fileNameListFree(&fileNameList, 0);
         return -1;
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     _strmfe(_str0, "AUTOMAP.DB", "SAV");
     strcat(_gmpath, _str0);
     compat_remove(_gmpath);
@@ -2831,7 +2855,7 @@ static int _GameMap2Slot(File* stream)
         }
 
         snprintf(_str0, sizeof(_str0), "%s\\%s\\%s", _patches, "MAPS", string);
-        snprintf(_str1, sizeof(_str1), "%s\\%s\\%s%.2d\\%s", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1, string);
+        snprintf(_str1, sizeof(_str1), "%s\\%s%.2d\\%s", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1, string);
         if (fileCopyCompressed(_str0, _str1) == -1) {
             fileNameListFree(&fileNameList, 0);
             return -1;
@@ -2841,7 +2865,7 @@ static int _GameMap2Slot(File* stream)
     fileNameListFree(&fileNameList, 0);
 
     _strmfe(_str0, "AUTOMAP.DB", "SAV");
-    snprintf(_str1, sizeof(_str1), "%s\\%s\\%s%.2d\\%s", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1, _str0);
+    snprintf(_str1, sizeof(_str1), "%s\\%s%.2d\\%s", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1, _str0);
     snprintf(_str0, sizeof(_str0), "%s\\%s\\%s", _patches, "MAPS", "AUTOMAP.DB");
 
     if (fileCopyCompressed(_str0, _str1) == -1) {
@@ -2921,7 +2945,7 @@ static int _SlotMap2Game(File* stream)
                     ? PROTO_DIR_NAME "\\" CRITTERS_DIR_NAME
                     : PROTO_DIR_NAME "\\" ITEMS_DIR_NAME;
                 snprintf(_str0, sizeof(_str0), "%s\\%s\\%s", _patches, basePath, protoPath);
-                snprintf(_str1, sizeof(_str1), "%s\\%s\\%s%.2d\\%s\\%s", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1, basePath, protoPath);
+                snprintf(_str1, sizeof(_str1), "%s\\%s%.2d\\%s\\%s", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1, basePath, protoPath);
 
                 if (_gzdecompress_file(_str1, _str0) == -1) {
                     debugPrint("LOADSAVE: returning 6\n");
@@ -2937,7 +2961,7 @@ static int _SlotMap2Game(File* stream)
             break;
         }
 
-        snprintf(_str0, sizeof(_str0), "%s\\%s\\%s%.2d\\%s", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1, fileName);
+        snprintf(_str0, sizeof(_str0), "%s\\%s%.2d\\%s", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1, fileName);
         snprintf(_str1, sizeof(_str1), "%s\\%s\\%s", _patches, "MAPS", fileName);
 
         if (_gzdecompress_file(_str0, _str1) == -1) {
@@ -2947,7 +2971,7 @@ static int _SlotMap2Game(File* stream)
     }
 
     const char* automapFileName = _strmfe(_str1, "AUTOMAP.DB", "SAV");
-    snprintf(_str0, sizeof(_str0), "%s\\%s\\%s%.2d\\%s", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1, automapFileName);
+    snprintf(_str0, sizeof(_str0), "%s\\%s%.2d\\%s", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1, automapFileName);
     snprintf(_str1, sizeof(_str1), "%s\\%s\\%s", _patches, "MAPS", "AUTOMAP.DB");
     if (fileCopyDecompressed(_str0, _str1) == -1) {
         debugPrint("LOADSAVE: returning 8\n");
@@ -3113,7 +3137,7 @@ static int _SaveBackup()
 {
     debugPrint("\nLOADSAVE: Backing up save slot files..\n");
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     strcpy(_str0, _gmpath);
 
     strcat(_str0, "SAVE.DAT");
@@ -3128,7 +3152,7 @@ static int _SaveBackup()
         }
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     snprintf(_str0, sizeof(_str0), "%s*.%s", _gmpath, "SAV");
 
     char** fileList;
@@ -3139,7 +3163,7 @@ static int _SaveBackup()
 
     _map_backup_count = fileListLength;
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     for (int index = fileListLength - 1; index >= 0; index--) {
         strcpy(_str0, _gmpath);
         strcat(_str0, fileList[index]);
@@ -3155,7 +3179,7 @@ static int _SaveBackup()
 
     debugPrint("\nLOADSAVE: %d map files backed up.\n", fileListLength);
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
 
     char* v1 = _strmfe(_str2, "AUTOMAP.DB", "SAV");
     snprintf(_str0, sizeof(_str0), "%s\\%s", _gmpath, v1);
@@ -3186,7 +3210,7 @@ static int _RestoreSave()
 
     _EraseSave();
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     strcpy(_str0, _gmpath);
     strcat(_str0, "SAVE.DAT");
     _strmfe(_str1, _str0, "BAK");
@@ -3197,7 +3221,7 @@ static int _RestoreSave()
         return -1;
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     snprintf(_str0, sizeof(_str0), "%s*.%s", _gmpath, "BAK");
 
     char** fileList;
@@ -3212,7 +3236,7 @@ static int _RestoreSave()
         return -1;
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
 
     for (int index = fileListLength - 1; index >= 0; index--) {
         strcpy(_str0, _gmpath);
@@ -3232,7 +3256,7 @@ static int _RestoreSave()
         return 0;
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     char* v1 = _strmfe(_str2, "AUTOMAP.DB", "BAK");
     strcpy(_str0, _gmpath);
     strcat(_str0, v1);
@@ -3274,12 +3298,12 @@ static int _EraseSave()
 {
     debugPrint("\nLOADSAVE: Erasing save(bad) slot...\n");
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     strcpy(_str0, _gmpath);
     strcat(_str0, "SAVE.DAT");
     compat_remove(_str0);
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameDir(), "SLOT", _slot_cursor + 1);
     snprintf(_str0, sizeof(_str0), "%s*.%s", _gmpath, "SAV");
 
     char** fileList;
@@ -3288,7 +3312,7 @@ static int _EraseSave()
         return -1;
     }
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
     for (int index = fileListLength - 1; index >= 0; index--) {
         strcpy(_str0, _gmpath);
         strcat(_str0, fileList[index]);
@@ -3297,7 +3321,7 @@ static int _EraseSave()
 
     fileNameListFree(&fileList, 0);
 
-    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s\\%s%.2d\\", _patches, "SAVEGAME", "SLOT", _slot_cursor + 1);
+    snprintf(_gmpath, sizeof(_gmpath), "%s\\%s%.2d\\", lsgSavegameRoot().c_str(), "SLOT", _slot_cursor + 1);
 
     char* v1 = _strmfe(_str1, "AUTOMAP.DB", "SAV");
     strcpy(_str0, _gmpath);
