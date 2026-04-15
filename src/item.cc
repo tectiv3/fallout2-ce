@@ -368,21 +368,28 @@ int itemAdd(Object* owner, Object* itemToAdd, int quantity)
         return 0;
     }
 
+    // Merge direction: preserve the existing inventory item (so outside
+    // references stay valid) and destroy the incoming `itemToAdd`. Scripts
+    // like fo2tweaks auto_reload hold a pointer to the stack they looked up
+    // and re-use it after `add_mult_objs_to_inven`; swapping this direction
+    // (from the original "destroy existing, keep new") unblocks them.
+    Object* existing = inventory->items[index].item;
+
     if (itemGetType(itemToAdd) == ITEM_TYPE_AMMO) {
         // NOTE: Uninline.
         int ammoQuantityToAdd = ammoGetQuantity(itemToAdd);
 
-        int ammoQuantity = ammoGetQuantity(inventory->items[index].item);
+        int ammoQuantity = ammoGetQuantity(existing);
 
         // NOTE: Uninline.
-        int capacity = ammoGetCapacity(itemToAdd);
+        int capacity = ammoGetCapacity(existing);
 
         ammoQuantity += ammoQuantityToAdd;
         if (ammoQuantity > capacity) {
-            ammoSetQuantity(itemToAdd, ammoQuantity - capacity);
+            ammoSetQuantity(existing, ammoQuantity - capacity);
             inventory->items[index].quantity++;
         } else {
-            ammoSetQuantity(itemToAdd, ammoQuantity);
+            ammoSetQuantity(existing, ammoQuantity);
         }
 
         inventory->items[index].quantity += quantity - 1;
@@ -390,9 +397,7 @@ int itemAdd(Object* owner, Object* itemToAdd, int quantity)
         inventory->items[index].quantity += quantity;
     }
 
-    objectDestroy(inventory->items[index].item, nullptr);
-    inventory->items[index].item = itemToAdd;
-    itemToAdd->owner = owner;
+    objectDestroy(itemToAdd, nullptr);
 
     return 0;
 }

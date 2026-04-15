@@ -313,7 +313,7 @@ set(FALLOUT_PLATFORM_SOURCES
     "src/touch.cc"
     "src/touch.h"
     "src/scan_unimplemented.cc"
-	"third_party/lodepng/lodepng.cpp"
+    "third_party/lodepng/lodepng.cpp"
 )
 
 target_sources(${EXECUTABLE_NAME} PUBLIC
@@ -783,11 +783,6 @@ endif()
 
 # Add option to enable AddressSanitizer
 option(ENABLE_ASAN "Enable AddressSanitizer for debug builds" OFF)
-
-# Set C++ standard and other existing settings
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED YES)
-set(CMAKE_CXX_EXTENSIONS NO)
 
 # Define ASan flags for supported compilers (GCC, Clang, MSVC)
 if(ENABLE_ASAN)
