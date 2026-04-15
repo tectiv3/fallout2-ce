@@ -65,7 +65,13 @@ void drawCenteredLabel(unsigned char* buffer, int pitch, int x, int y, int w, in
     int ty = y + (h - lineHeight) / 2 + 2;
     if (tx < x) tx = x;
     if (ty < y) ty = y;
-    fontDrawText(buffer + ty * pitch + tx, text, pitch, pitch, color);
+    // Clip text to the button's right edge so a label wider than the panel
+    // (e.g. localized or longer-named skill) can't overdraw adjacent buttons.
+    int maxDrawWidth = x + w - tx;
+    if (maxDrawWidth <= 0) {
+        return;
+    }
+    fontDrawText(buffer + ty * pitch + tx, text, maxDrawWidth, pitch, color);
 }
 
 // Muted panel tuned to sit inside the same tonal range as the belt: very dim
