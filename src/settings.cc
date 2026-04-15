@@ -81,6 +81,19 @@ static void settingsWrite(const char* section, const char* key, double value)
 
 static void normalizePath(std::string& value, const char* section, const char* key)
 {
+    // Strip shell-style surrounding quotes. Users reach for quotes when a path
+    // contains spaces (e.g. ~/Library/Mobile Documents/...); configTrimString
+    // only handles whitespace, so without this the quotes become part of the
+    // path and every lookup silently fails.
+    if (value.size() >= 2) {
+        char first = value.front();
+        char last = value.back();
+        if ((first == '"' || first == '\'') && first == last) {
+            value.erase(value.size() - 1, 1);
+            value.erase(0, 1);
+        }
+    }
+
     char* path = value.data();
     compat_windows_path_to_native(path);
     compat_resolve_path(path);
