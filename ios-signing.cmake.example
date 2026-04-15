@@ -1,5 +1,13 @@
 # Copy this to ios-signing.cmake (which is gitignored) and fill in your values.
-# Picked up automatically by CMakeLists.txt when configuring the iOS preset.
+# Picked up automatically by CMakeLists.txt for both iOS and macOS builds.
 
 set(IOS_BUNDLE_IDENTIFIER "com.yourname.fallout2-ce")
 set(IOS_DEVELOPMENT_TEAM "ABCDE12345")
+
+# macOS: stable codesigning so TCC grants (e.g. iCloud Drive access) persist
+# across rebuilds. Identity must match an entry from
+#   security find-identity -v -p codesigning
+# Developer ID Application is the natural choice for local personal builds.
+# Leave unset to skip signing entirely.
+# set(MAC_SIGNING_IDENTITY "Developer ID Application: Your Name (ABCDE12345)")
+# set(MAC_BUNDLE_IDENTIFIER "com.yourname.fallout2-ce")

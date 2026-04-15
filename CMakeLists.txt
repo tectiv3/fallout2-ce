@@ -443,6 +443,15 @@ if(APPLE)
             )
         endif()
     else()
+        # Reuse the iOS signing file for Mac overrides — same file, two extra
+        # optional vars (MAC_SIGNING_IDENTITY, MAC_BUNDLE_IDENTIFIER).
+        if(EXISTS "${CMAKE_SOURCE_DIR}/ios-signing.cmake")
+            include("${CMAKE_SOURCE_DIR}/ios-signing.cmake")
+        endif()
+        if(NOT DEFINED MAC_BUNDLE_IDENTIFIER)
+            set(MAC_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce")
+        endif()
+
         set(RESOURCES
             "os/macos/fallout2-ce.icns"
         )
@@ -454,16 +463,37 @@ if(APPLE)
             OUTPUT_NAME "Fallout II Community Edition"
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/macos/Info.plist"
             XCODE_ATTRIBUTE_EXECUTABLE_NAME "${EXECUTABLE_NAME}"
-            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.alexbatalov.fallout2-ce"
+            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${MAC_BUNDLE_IDENTIFIER}"
         )
 
         set(MACOSX_BUNDLE_ICON_FILE "fallout2-ce.icns")
         set(MACOSX_BUNDLE_BUNDLE_NAME "Fallout II: Community Edition")
         set(MACOSX_BUNDLE_DISPLAY_NAME "Fallout II")
+
+        # Post-build codesign. A stable signature (same identity + same bundle
+        # ID) lets macOS TCC remember "Files & Folders" grants (including iCloud
+        # Drive access) across rebuilds, so the user grants once and load/save
+        # from ~/Library/Mobile Documents keeps working.
+        #
+        # Set MAC_SIGNING_IDENTITY in ios-signing.cmake to any identity from
+        # `security find-identity -v -p codesigning` (Developer ID Application
+        # recommended). Without it the app stays unsigned — grants are lost
+        # on every rebuild.
+        if(DEFINED MAC_SIGNING_IDENTITY AND NOT "${MAC_SIGNING_IDENTITY}" STREQUAL "")
+            add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+                COMMAND codesign --force --sign "${MAC_SIGNING_IDENTITY}"
+                    --timestamp=none
+                    "$<TARGET_BUNDLE_DIR:${EXECUTABLE_NAME}>"
+                COMMENT "Codesigning Mac bundle with ${MAC_SIGNING_IDENTITY}"
+                VERBATIM
+            )
+        endif()
     endif()
 
     if(IOS AND DEFINED IOS_BUNDLE_IDENTIFIER)
         set(MACOSX_BUNDLE_GUI_IDENTIFIER "${IOS_BUNDLE_IDENTIFIER}")
+    elseif(NOT IOS AND DEFINED MAC_BUNDLE_IDENTIFIER)
+        set(MACOSX_BUNDLE_GUI_IDENTIFIER "${MAC_BUNDLE_IDENTIFIER}")
     else()
         set(MACOSX_BUNDLE_GUI_IDENTIFIER "com.alexbatalov.fallout2-ce")
     endif()
