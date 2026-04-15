@@ -517,14 +517,18 @@ void scriptHooks_OnDeath(Object* critter)
     Runs when the game calculates what FID to display for a critter in UI
     (inventory, barter, loot). Used by npc_armor mod.
 
-    Critter arg0 - the critter whose FID is being calculated
-    int     arg1 - the base FID being displayed
+    int     arg0 - the base FID being displayed (sfall passes a single arg;
+                   the script reads currFid := get_sfall_arg)
 
     int     ret0 - override FID (or -1 to keep base)
 */
 int scriptHooks_AdjustFid(Object* critter, int baseFid)
 {
-    ScriptHookCall hook(HOOK_ADJUSTFID, 1, { critter, baseFid });
+    // critter is unused at the script layer — sfall's HOOK_ADJUSTFID passes
+    // only the FID. The mod determines the critter via dude_obj (which sfall
+    // can rebind via set_dude_obj when controlling another party member).
+    (void)critter;
+    ScriptHookCall hook(HOOK_ADJUSTFID, 1, { baseFid });
     hook.call();
 
     if (hook.numReturnValues() > 0) {
@@ -535,6 +539,56 @@ int scriptHooks_AdjustFid(Object* critter, int baseFid)
     }
 
     return baseFid;
+}
+
+/*
+    HOOK_INVENWIELD
+
+    Runs when an item is equipped or unequipped — for any critter, including
+    NPC auto-equip via "Use Best Armor". This is the npc_armor mod's primary
+    trigger for swapping an NPC's display sprite.
+
+    Critter arg0 - the critter wielding/unwielding
+    Item    arg1 - the item being moved
+    int     arg2 - INVEN_TYPE_WORN (0), INVEN_TYPE_RIGHT_HAND (1), or
+                   INVEN_TYPE_LEFT_HAND (2)
+    int     arg3 - 1 on wield, 0 on unwield
+
+    int     ret0 - non-zero allows the action; 0 vetoes it
+*/
+bool scriptHooks_InvenWield(Object* critter, Object* item, int slot, int isWield)
+{
+    ScriptHookCall hook(HOOK_INVENWIELD, 1, { critter, item, slot, isWield });
+    hook.call();
+
+    if (hook.numReturnValues() <= 0) {
+        return true;
+    }
+    return hook.getReturnValueAt(0).asInt() != 0;
+}
+
+/*
+    HOOK_CANUSEWEAPON
+
+    Runs while the engine's AI is evaluating whether a critter can use a
+    weapon. The npc_armor mod uses this to block weapons whose anim code
+    isn't supported by the swapped-armor sprite set.
+
+    Critter arg0 - the critter being evaluated
+    Item    arg1 - the candidate weapon
+    int     arg2 - hand slot (1 right, 2 left)
+
+    int     ret0 - non-zero permits use; 0 forbids it
+*/
+bool scriptHooks_CanUseWeapon(Object* critter, Object* weapon, int slot)
+{
+    ScriptHookCall hook(HOOK_CANUSEWEAPON, 1, { critter, weapon, slot });
+    hook.call();
+
+    if (hook.numReturnValues() <= 0) {
+        return true;
+    }
+    return hook.getReturnValueAt(0).asInt() != 0;
 }
 
 } // namespace fallout

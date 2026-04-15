@@ -65,6 +65,10 @@ static char _mainMap[] = "artemple.map";
 // 0x5194D8
 static int _main_game_paused = 0;
 
+// CLI: --load-slot=N opens slot N (1-based) on launch, bypassing the main menu.
+// Used for diagnostics — driving load via UI is blocked by macOS Accessibility.
+static int gAutoLoadSlot = -1;
+
 // 0x5194E8
 static bool _main_show_death_scene = false;
 
@@ -74,6 +78,12 @@ static bool _main_death_voiceover_done;
 // 0x48099C
 int falloutMain(int argc, char** argv)
 {
+    for (int i = 1; i < argc; i++) {
+        if (strncmp(argv[i], "--load-slot=", 12) == 0) {
+            gAutoLoadSlot = atoi(argv[i] + 12) - 1;
+        }
+    }
+
     if (!autorunMutexCreate()) {
         return 1;
     }
@@ -103,7 +113,18 @@ int falloutMain(int argc, char** argv)
             mainMenuWindowUnhide(true);
 
             mouseShowCursor();
-            int mainMenuRc = mainMenuWindowHandleEvents();
+            int mainMenuRc;
+            if (gAutoLoadSlot >= 0) {
+                mainMenuRc = MAIN_MENU_LOAD_GAME;
+                lsgSetSlotCursor(gAutoLoadSlot);
+                // Two ENTERs: first dismisses any modal, second confirms slot.
+                // The load UI's input loop polls inputGetInput each frame.
+                enqueueInputEvent(KEY_RETURN);
+                enqueueInputEvent(KEY_RETURN);
+                gAutoLoadSlot = -1;
+            } else {
+                mainMenuRc = mainMenuWindowHandleEvents();
+            }
             mouseHideCursor();
 
             switch (mainMenuRc) {

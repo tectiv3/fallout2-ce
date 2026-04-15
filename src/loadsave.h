@@ -20,6 +20,10 @@ int lsgSaveGame(int mode);
 int lsgLoadGame(int mode);
 bool _isLoadingGame();
 void lsgInit();
+
+// Pre-position the load/save UI cursor on a given slot (0-based). Used by the
+// --load-slot CLI arg so the auto-injected ENTER lands on the right entry.
+void lsgSetSlotCursor(int slot);
 int MapDirErase(const char* path, const char* extension);
 int _MapDirEraseFile_(const char* relativePath, const char* fileName);
 

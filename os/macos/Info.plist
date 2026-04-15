@@ -34,5 +34,10 @@
     <string>10.11</string>
     <key>SDL_FILESYSTEM_BASE_DIR_TYPE</key>
     <string>parent</string>
+    <key>LSEnvironment</key>
+    <dict>
+        <key>OS_ACTIVITY_MODE</key>
+        <string>disable</string>
+    </dict>
 </dict>
 </plist>

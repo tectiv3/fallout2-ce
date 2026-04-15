@@ -216,6 +216,13 @@ static int _currentSlotPage = 0;
 // 0x5193B8
 static int _slot_cursor = 0;
 
+void lsgSetSlotCursor(int slot)
+{
+    if (slot >= 0 && slot < 100) {
+        _slot_cursor = slot;
+    }
+}
+
 // 0x5193BC
 static bool _quick_done = false;
 

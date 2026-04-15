@@ -1057,6 +1057,16 @@ static void op_get_array(Program* program)
 
     if (arrayId.isInt()) {
         auto value = GetArray(arrayId.integerValue, key, program);
+        if (key.isString()) {
+            const char* keyStr = programGetString(program, key.opcode, key.integerValue);
+            const char* resultStr = value.isString()
+                ? programGetString(program, value.opcode, value.integerValue)
+                : nullptr;
+            debugPrint("get_array(arr=%d, key='%s') -> int=%d str=%s\n",
+                arrayId.integerValue, keyStr ? keyStr : "?",
+                value.isInt() ? value.integerValue : -999,
+                resultStr ? resultStr : "(non-str)");
+        }
         programStackPushValue(program, value);
     } else if (arrayId.isString() && key.isInt()) {
         auto pos = key.asInt();
