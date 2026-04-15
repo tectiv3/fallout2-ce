@@ -411,6 +411,14 @@ if(APPLE)
         target_sources(${EXECUTABLE_NAME} PUBLIC ${RESOURCES})
         set_source_files_properties(${RESOURCES} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
 
+        # Entitlements live at repo root because Xcode auto-generated them there
+        # when the iCloud capability was enabled. CMake's Xcode generator rewrites
+        # project.pbxproj on every configure, so the CODE_SIGN_ENTITLEMENTS link
+        # must be re-declared here or it is lost.
+        set(IOS_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/fallout2-ce.entitlements")
+        target_sources(${EXECUTABLE_NAME} PUBLIC "${IOS_ENTITLEMENTS}")
+        set_source_files_properties("${IOS_ENTITLEMENTS}" PROPERTIES HEADER_FILE_ONLY ON)
+
         set_target_properties(${EXECUTABLE_NAME} PROPERTIES
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/os/ios/Info.plist"
             XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
@@ -418,6 +426,7 @@ if(APPLE)
             XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "${IOS_DEVELOPMENT_TEAM}"
             XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
             XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "Apple Development"
+            XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${IOS_ENTITLEMENTS}"
             XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "1,2"
             XCODE_ATTRIBUTE_INSTALL_PATH "$(LOCAL_APPS_DIR)"
             XCODE_ATTRIBUTE_SKIP_INSTALL "NO"

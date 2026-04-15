@@ -5,6 +5,13 @@
 #include <string.h>
 #include <time.h>
 
+#if __APPLE__
+#include <TargetConditionals.h>
+#if TARGET_OS_IOS
+#include "platform/ios/paths.h"
+#endif
+#endif
+
 #include <algorithm>
 
 #include "art.h"
@@ -111,6 +118,10 @@ typedef enum LoadSaveSlotState {
     SLOT_STATE_OCCUPIED,
     SLOT_STATE_ERROR,
     SLOT_STATE_UNSUPPORTED_VERSION,
+    // Slot has cloud files but at least one is still a placeholder. Treated as
+    // not loadable (same as EMPTY) until the iCloud sync layer atomically copies
+    // the slot down. Only ever set on iOS by _GetSlotList.
+    SLOT_STATE_DOWNLOADING,
 } LoadSaveSlotState;
 
 typedef enum LoadSaveScrollDirection {
@@ -493,6 +504,7 @@ int lsgSaveGame(int mode)
     }
 
     switch (_LSstatus[_slot_cursor]) {
+    case SLOT_STATE_DOWNLOADING:
     case SLOT_STATE_EMPTY:
     case SLOT_STATE_ERROR:
     case SLOT_STATE_UNSUPPORTED_VERSION:
@@ -531,6 +543,14 @@ int lsgSaveGame(int mode)
         int scrollDirection = LOAD_SAVE_SCROLL_DIRECTION_NONE;
 
         convertMouseWheelToArrowKey(&keyCode);
+
+#if __APPLE__ && TARGET_OS_IOS
+        if (iOSICloudConsumeSavesDirty()) {
+            _GetSlotList();
+            _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_SAVE_GAME);
+            windowRefresh(gLoadSaveWindow);
+        }
+#endif
 
         if (keyCode == KEY_ESCAPE || keyCode == 501 || _game_user_wants_to_quit != GAME_QUIT_REQUEST_NONE) {
             rc = 0;
@@ -751,6 +771,7 @@ int lsgSaveGame(int mode)
                     // other switches do.
                     // fixed to match load screen 'thumbnail'/'blank' updating
                     switch (_LSstatus[_slot_cursor]) {
+                    case SLOT_STATE_DOWNLOADING:
                     case SLOT_STATE_EMPTY:
                     case SLOT_STATE_ERROR:
                         blitBufferToBuffer(_loadsaveFrmImages[LOAD_SAVE_FRM_PREVIEW_COVER].getData(),
@@ -797,6 +818,7 @@ int lsgSaveGame(int mode)
             if (selectionChanged) {
                 // fixed to match load screen 'thumbnail'/'blank' updating
                 switch (_LSstatus[_slot_cursor]) {
+                case SLOT_STATE_DOWNLOADING:
                 case SLOT_STATE_EMPTY:
                 case SLOT_STATE_ERROR:
                 case SLOT_STATE_UNSUPPORTED_VERSION:
@@ -903,6 +925,7 @@ int lsgSaveGame(int mode)
                     }
                     // fixed to match load screen 'thumbnail'/'blank' updating
                     switch (_LSstatus[_slot_cursor]) {
+                    case SLOT_STATE_DOWNLOADING:
                     case SLOT_STATE_EMPTY:
                     case SLOT_STATE_ERROR:
                     case SLOT_STATE_UNSUPPORTED_VERSION:
@@ -1132,6 +1155,7 @@ int lsgLoadGame(int mode)
     }
 
     switch (_LSstatus[_slot_cursor]) {
+    case SLOT_STATE_DOWNLOADING:
     case SLOT_STATE_EMPTY:
     case SLOT_STATE_ERROR:
     case SLOT_STATE_UNSUPPORTED_VERSION:
@@ -1176,6 +1200,14 @@ int lsgLoadGame(int mode)
         int scrollDirection = LOAD_SAVE_SCROLL_DIRECTION_NONE;
 
         convertMouseWheelToArrowKey(&keyCode);
+
+#if __APPLE__ && TARGET_OS_IOS
+        if (iOSICloudConsumeSavesDirty()) {
+            _GetSlotList();
+            _ShowSlotList(LOAD_SAVE_WINDOW_TYPE_LOAD_GAME);
+            windowRefresh(gLoadSaveWindow);
+        }
+#endif
 
         if (keyCode == KEY_ESCAPE || keyCode == 501 || _game_user_wants_to_quit != GAME_QUIT_REQUEST_NONE) {
             rc = 0;
@@ -1325,7 +1357,8 @@ int lsgLoadGame(int mode)
         }
 
         if (keyCode == kLoadSaveActionDone) {
-            if (_LSstatus[_slot_cursor] != SLOT_STATE_EMPTY) {
+            if (_LSstatus[_slot_cursor] != SLOT_STATE_EMPTY
+                && _LSstatus[_slot_cursor] != SLOT_STATE_DOWNLOADING) {
                 rc = 1;
             } else {
                 rc = -1;
@@ -1387,6 +1420,7 @@ int lsgLoadGame(int mode)
                     }
 
                     switch (_LSstatus[_slot_cursor]) {
+                    case SLOT_STATE_DOWNLOADING:
                     case SLOT_STATE_EMPTY:
                     case SLOT_STATE_ERROR:
                     case SLOT_STATE_UNSUPPORTED_VERSION:
@@ -1433,6 +1467,7 @@ int lsgLoadGame(int mode)
         } else {
             if (selectionChanged) {
                 switch (_LSstatus[_slot_cursor]) {
+                case SLOT_STATE_DOWNLOADING:
                 case SLOT_STATE_EMPTY:
                 case SLOT_STATE_ERROR:
                 case SLOT_STATE_UNSUPPORTED_VERSION:
@@ -2228,6 +2263,11 @@ static int _GetSlotList()
         int fileSize;
         if (dbGetFileSize(_str, &fileSize) != 0) {
             _LSstatus[index] = SLOT_STATE_EMPTY;
+#if __APPLE__ && TARGET_OS_IOS
+            if (iOSICloudSlotIsDownloading(index)) {
+                _LSstatus[index] = SLOT_STATE_DOWNLOADING;
+            }
+#endif
         } else {
             _flptr = fileOpen(_str, "rb");
 
@@ -2281,6 +2321,11 @@ static void _ShowSlotList(int windowType)
             // - EMPTY -
             text = getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 111);
             snprintf(_str, sizeof(_str), "       %s", text);
+            break;
+        case SLOT_STATE_DOWNLOADING:
+            // Hardcoded label — no message-file entry exists in the original
+            // game data. Could be moved to a localized string later.
+            snprintf(_str, sizeof(_str), "  - DOWNLOADING -");
             break;
         case SLOT_STATE_ERROR:
             // - CORRUPT SAVE FILE -
@@ -2400,6 +2445,10 @@ static void _DrawInfoBox(int slot)
         text = getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 114);
         dest = gLoadSaveWindowBuffer + LS_WINDOW_WIDTH * 262 + 404;
         break;
+    case SLOT_STATE_DOWNLOADING:
+        text = "Downloading...";
+        dest = gLoadSaveWindowBuffer + LS_WINDOW_WIDTH * 262 + 392;
+        break;
     case SLOT_STATE_ERROR:
         // Error!
         text = getmsg(&gLoadSaveMessageList, &gLoadSaveMessageListItem, 115);
@@ -2424,7 +2473,8 @@ static int _LoadTumbSlot(int slot)
 {
     if (_LSstatus[_slot_cursor] != SLOT_STATE_EMPTY
         && _LSstatus[_slot_cursor] != SLOT_STATE_ERROR
-        && _LSstatus[_slot_cursor] != SLOT_STATE_UNSUPPORTED_VERSION) {
+        && _LSstatus[_slot_cursor] != SLOT_STATE_UNSUPPORTED_VERSION
+        && _LSstatus[_slot_cursor] != SLOT_STATE_DOWNLOADING) {
         snprintf(_str, sizeof(_str), "%s\\%s%.2d\\%s", "SAVEGAME", "SLOT", _slot_cursor + 1, "SAVE.DAT");
         debugPrint(" Filename %s\n", _str);
 
