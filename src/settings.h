@@ -13,6 +13,12 @@ struct SystemSettings {
     std::string master_patches_path = "data";
     std::string critter_dat_path = "critter.dat";
     std::string critter_patches_path = "data";
+    // Savegame root. Default "SAVEGAME" preserves vanilla layout under
+    // <master_patches_path>/SAVEGAME (engine xbase + raw POSIX both resolve
+    // to <patches>/SAVEGAME). Set to an absolute path to redirect saves
+    // elsewhere — e.g. iCloud Drive's ubiquity-container savegame folder
+    // for Mac↔iPad sync without code-signing the Mac app.
+    std::string savegame_path = "SAVEGAME";
     std::string language = ENGLISH;
     int scroll_lock = 0;
     bool interrupt_walk = true;

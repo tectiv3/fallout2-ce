@@ -151,6 +151,7 @@ void initSettingsRegistry(bool isMapper)
             { GAME_CONFIG_MASTER_PATCHES_KEY, settings.system.master_patches_path, normalizePath },
             { GAME_CONFIG_CRITTER_DAT_KEY, settings.system.critter_dat_path, normalizePath },
             { GAME_CONFIG_CRITTER_PATCHES_KEY, settings.system.critter_patches_path, normalizePath },
+            { "savegame_path", settings.system.savegame_path, normalizePath },
             { "language", settings.system.language },
             { "scroll_lock", settings.system.scroll_lock },
             { "interrupt_walk", settings.system.interrupt_walk },
