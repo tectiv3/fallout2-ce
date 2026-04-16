@@ -368,17 +368,44 @@ int sfall_kb_handle_key_pressed(int sdlScanCode, bool pressed)
 {
     if (!gGameLoaded) return SDL_SCANCODE_UNKNOWN;
 
+    const int primaryDik = get_key_from_scancode(static_cast<SDL_Scancode>(sdlScanCode));
+
+    // Mods that filter with exact-match (e.g. fo2tweaks highlighting's
+    // `if (key != highlight_key) return;`) otherwise force users to pick one
+    // physical shift. Firing the hook for the sibling shift lets either side
+    // satisfy a `key=42` or `key=54` configuration without duplicating logic.
+    int siblingDik = 0;
+    if (sdlScanCode == SDL_SCANCODE_LSHIFT) {
+        siblingDik = 54; // DIK_RSHIFT
+    } else if (sdlScanCode == SDL_SCANCODE_RSHIFT) {
+        siblingDik = 42; // DIK_LSHIFT
+    }
+
+    int overrideDxCode = SDL_SCANCODE_UNKNOWN;
+
     ScriptHookCall hook(HOOK_KEYPRESS, 1, {
-                                              pressed ? 1 : 0, get_key_from_scancode(static_cast<SDL_Scancode>(sdlScanCode)),
+                                              pressed ? 1 : 0, primaryDik,
                                               0 // TODO: sfall uses VK_ codes here; not sure any mod actually used it. If so, maybe it is better to use Key values from kb.h?
                                           });
     hook.call();
-
-    if (hook.numReturnValues() <= 0) {
-        return SDL_SCANCODE_UNKNOWN;
+    if (hook.numReturnValues() > 0) {
+        overrideDxCode = hook.getReturnValueAt(0).asInt();
     }
 
-    int overrideDxCode = hook.getReturnValueAt(0).asInt();
+    if (siblingDik != 0) {
+        ScriptHookCall siblingHook(HOOK_KEYPRESS, 1, { pressed ? 1 : 0, siblingDik, 0 });
+        siblingHook.call();
+        // Sibling return only wins if the primary didn't override. Avoids the
+        // second shift silently clobbering a remap decision made for the key
+        // actually pressed.
+        if (overrideDxCode == SDL_SCANCODE_UNKNOWN && siblingHook.numReturnValues() > 0) {
+            overrideDxCode = siblingHook.getReturnValueAt(0).asInt();
+        }
+    }
+
+    if (overrideDxCode == SDL_SCANCODE_UNKNOWN) {
+        return SDL_SCANCODE_UNKNOWN;
+    }
     return get_scancode_from_key(overrideDxCode);
 }
 
