@@ -21,6 +21,7 @@
 #include "proto.h"
 #include "random.h"
 #include "scripts.h"
+#include "sfall_callbacks.h"
 #include "skill.h"
 #include "svga.h"
 #include "tile.h"
@@ -754,7 +755,9 @@ int pcAddExperienceWithOptions(int xp, bool doParty, int* xpGained)
             break;
         }
 
-        if (pcSetStat(PC_STAT_LEVEL, gPcStatValues[PC_STAT_LEVEL] + 1) == 0) {
+        int oldLevel = gPcStatValues[PC_STAT_LEVEL];
+
+        if (pcSetStat(PC_STAT_LEVEL, oldLevel + 1) == 0) {
             int maxHpBefore = critterGetStat(gDude, STAT_MAXIMUM_HIT_POINTS);
 
             // You have gone up a level.
@@ -791,6 +794,8 @@ int pcAddExperienceWithOptions(int xp, bool doParty, int* xpGained)
             if (doParty) {
                 _partyMemberIncLevels();
             }
+
+            sfallOnLevelUp(gDude, oldLevel, gPcStatValues[PC_STAT_LEVEL]);
         }
     }
 

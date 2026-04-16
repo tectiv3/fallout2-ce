@@ -741,6 +741,27 @@ void scriptHooks_BarterPrice(BarterPriceContext* ctx)
 }
 
 /*
+    HOOK_ONLEVELUP
+
+    Runs when the PC levels up. Fires once per level gained (a multi-level
+    XP grant fires the hook N times). Fired after the HP bonus is applied,
+    HP UI is refreshed, and party members have propagated their own level
+    increments — scripts observe a fully committed post-level-up state.
+    Notification-only; no return values. If a script mutates HP inside the
+    hook, it must issue its own interface refresh; the engine's render
+    call has already happened.
+
+    int     arg0 - the PC critter (always gDude in v1)
+    int     arg1 - old level (before this level-up)
+    int     arg2 - new level (after this level-up)
+*/
+void scriptHooks_OnLevelUp(Object* critter, int oldLevel, int newLevel)
+{
+    ScriptHookCall hook(HOOK_ONLEVELUP, 0, { critter, oldLevel, newLevel });
+    hook.call();
+}
+
+/*
     HOOK_ADJUSTFID
 
     Runs when the game calculates what FID to display for a critter in UI

@@ -147,10 +147,17 @@ typedef enum {
     // Allows to prevent PC or NPC from using a weapon.
     HOOK_CANUSEWEAPON = 48,
 
-    // RESERVED 49..60
+    // RESERVED 49..99: upstream sfall parity slots (past & future).
+    // 100+: fallout2-ce-local hook extensions.
 
     // Weapon SFX name is generated.
     HOOK_BUILDSFXWEAPON = 61,
+
+    // PC leveled up. Fires once per level gained, at the end of each
+    // level-up iteration in pcAddExperienceWithOptions — after HP bonus,
+    // UI refresh, and party propagation, so scripts observe a fully
+    // committed state. Notification-only; no return values.
+    HOOK_ONLEVELUP = 100,
 
     HOOK_COUNT,
 } HookType;
@@ -289,6 +296,7 @@ int scriptHooks_UseItem(Object* user, Object* objUsed);
 int scriptHooks_UseItemOn(Object* user, Object* target, Object* objUsed);
 void scriptHooks_ComputeDamage(Attack* attack, int numRounds, int baseDmgMult);
 void scriptHooks_BarterPrice(BarterPriceContext* ctx);
+void scriptHooks_OnLevelUp(Object* critter, int oldLevel, int newLevel);
 
 int scriptHooks_AdjustFid(int vanillaFid, int modifiedFid);
 bool scriptHooks_InvenWield(Object* critter, Object* item, InvenSlot slot, int isWield, int isRemove);
