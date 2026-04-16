@@ -2233,8 +2233,12 @@ static int lsgLoadHeaderInSlot(int slot)
         return -1;
     }
 
-    ptr->fileMonth = v8[0];
-    ptr->fileDay = v8[1];
+    // Save writes (day, month, year) at lsgSaveHeaderInSlot — fileDay first,
+    // then fileMonth. Old load order was swapped (off-by-one-field); harmless
+    // while nothing compared the values, broken the moment
+    // lsgFindMostRecentSave started doing lexicographic date compares.
+    ptr->fileDay = v8[0];
+    ptr->fileMonth = v8[1];
     ptr->fileYear = v8[2];
 
     if (_db_freadInt(_flptr, &(ptr->fileTime)) == -1) {
@@ -2317,6 +2321,38 @@ static int _GetSlotList()
         }
     }
     return index;
+}
+
+int lsgFindMostRecentSave()
+{
+    if (_GetSlotList() == -1) {
+        return -1;
+    }
+
+    // Rank by in-game chronology (gameTime is a monotonic unsigned-int tick
+    // counter from game start; gameYear/gameMonth/gameDay are derived from
+    // it). Real-world fileTime is stored as `hour + min`, which is not
+    // monotonic within a day (15:00 -> 15 < 14:30 -> 44), so it's unreliable.
+    // gameTime is exactly "how far into the game" — what "continue" should
+    // restore.
+    int bestSlot = -1;
+    unsigned int bestGameTime = 0;
+    bool found = false;
+
+    for (int slot = 0; slot < saveLoadTotalSlots; slot++) {
+        if (_LSstatus[slot] != SLOT_STATE_OCCUPIED) {
+            continue;
+        }
+
+        const LoadSaveSlotData* d = &_LSData[slot];
+        if (!found || d->gameTime > bestGameTime) {
+            bestGameTime = d->gameTime;
+            bestSlot = slot;
+            found = true;
+        }
+    }
+
+    return bestSlot;
 }
 
 // 0x47E6D8

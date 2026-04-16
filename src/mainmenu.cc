@@ -10,6 +10,7 @@
 #include "game_sound.h"
 #include "input.h"
 #include "kb.h"
+#include "loadsave.h"
 #include "mouse.h"
 #include "palette.h"
 #include "preferences.h"
@@ -345,6 +346,20 @@ int mainMenuWindowHandleEvents()
 
                 if (buttonIndex == MAIN_MENU_BUTTON_CREDITS && (gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT] != KEY_STATE_UP || gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] != KEY_STATE_UP)) {
                     rc = MAIN_MENU_QUOTES;
+                }
+
+                // Continue-shortcut: Load Game + Shift loads the most recent
+                // save directly, reusing the --load-slot auto-flow
+                // (pre-position cursor + inject two ENTERs to confirm).
+                if (buttonIndex == MAIN_MENU_BUTTON_LOAD_GAME
+                    && (gPressedPhysicalKeys[SDL_SCANCODE_LSHIFT] != KEY_STATE_UP
+                           || gPressedPhysicalKeys[SDL_SCANCODE_RSHIFT] != KEY_STATE_UP)) {
+                    int recentSlot = lsgFindMostRecentSave();
+                    if (recentSlot >= 0) {
+                        lsgSetSlotCursor(recentSlot);
+                        enqueueInputEvent(KEY_RETURN);
+                        enqueueInputEvent(KEY_RETURN);
+                    }
                 }
 
                 break;
