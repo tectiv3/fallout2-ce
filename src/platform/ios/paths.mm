@@ -661,6 +661,7 @@ void iOSApplyUserDefaultsToSettings()
             @"damage_formula" : @0,
             @"combat_display_bonus_damage" : @NO,
             @"quick_toolbar_visible" : @YES,
+            @"allow_respec" : @NO,
         }];
 
         NSString* preset = [defaults stringForKey:@"resolution_preset"];
@@ -716,5 +717,7 @@ void iOSApplyUserDefaultsToSettings()
             [defaults boolForKey:@"combat_display_bonus_damage"] ? 1 : 0);
 
         fallout::quickToolbarSetEnabled([defaults boolForKey:@"quick_toolbar_visible"]);
+
+        fallout::settings.preferences.allow_respec = [defaults boolForKey:@"allow_respec"];
     }
 }

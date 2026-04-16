@@ -38,6 +38,8 @@
 #include "platform_compat.h"
 #include "proto.h"
 #include "scripts.h"
+#include "settings.h"
+#include "sfall_config.h"
 #include "skill.h"
 #include "stat.h"
 #include "svga.h"
@@ -283,6 +285,7 @@ static int perkDialogDrawTraits(int a1);
 static int perkDialogOptionCompare(const void* a1, const void* a2);
 static int perkDialogDrawCard(int frmId, const char* name, const char* rank, char* description);
 static void _pop_perks();
+static void characterEditorRespecPerks();
 static int _is_supper_bonus();
 static int characterEditorFolderViewInit();
 static void characterEditorFolderViewScroll(int direction);
@@ -941,6 +944,17 @@ int characterEditorShow(bool isCreationMode)
             || (!gCharacterEditorIsCreationMode && (keyCode == 501 || keyCode == KEY_UPPERCASE_P || keyCode == KEY_LOWERCASE_P))) {
             characterEditorShowOptions();
             windowRefresh(gCharacterEditorWindow);
+        } else if (gCharacterEditorIsCreationMode && gGameLoaded && settings.preferences.allow_respec
+            && (keyCode == KEY_UPPERCASE_R || keyCode == KEY_LOWERCASE_R)) {
+            characterEditorRespecPerks();
+            characterEditorDrawPrimaryStat(RENDER_ALL_STATS, 0, 0);
+            characterEditorDrawOptionalTraits();
+            characterEditorDrawSkills(0);
+            characterEditorDrawPcStats();
+            characterEditorDrawFolders();
+            characterEditorDrawDerivedStats();
+            characterEditorDrawCard();
+            windowRefresh(gCharacterEditorWindow);
         } else if (keyCode >= 525 && keyCode < 535) {
             characterEditorHandleInfoButtonPressed(keyCode);
             windowRefresh(gCharacterEditorWindow);
@@ -1183,7 +1197,13 @@ int characterEditorShow(bool isCreationMode)
     if (rc == 0) {
         if (isCreationMode) {
             _proto_dude_update_gender();
-            paletteFadeTo(gPaletteBlack);
+            if (!gGameLoaded) {
+                // Fresh character creation fades to black; the engine then
+                // loads the starting map which fades back in. Skip for
+                // mid-game respec — no subsequent fade-in would happen and
+                // the live map would remain invisible.
+                paletteFadeTo(gPaletteBlack);
+            }
         }
     }
 
@@ -1886,7 +1906,11 @@ static void characterEditorWindowFree()
         skillsSetTagged(gCharacterEditorTempTaggedSkills, 3);
         traitsSetSelected(gCharacterEditorTempTraits[0], gCharacterEditorTempTraits[1]);
         characterEditorSelectedItem = 0;
-        critterAdjustHitPoints(gDude, 1000);
+        if (!gGameLoaded) {
+            // Full-heal only for fresh character creation. During a mid-game
+            // respec (gGameLoaded = true) we must not reset the player's HP.
+            critterAdjustHitPoints(gDude, 1000);
+        }
     }
 
     indicatorBarShow();
@@ -6710,6 +6734,55 @@ static int perkDialogDrawCard(int frmId, const char* name, const char* rank, cha
     gPerkDialogCardDrawn = true;
 
     return 0;
+}
+
+// Respec a single perk. Only available in the mid-game respec flow
+// (creation mode + allow_respec + gGameLoaded). Iterates owned perks
+// prompting Yes/No; on Yes, removes one rank and opens the normal perk
+// picker for a replacement.
+static void characterEditorRespecPerks()
+{
+    int owned[PERK_COUNT];
+    int ownedCount = 0;
+    for (int perk = 0; perk < PERK_COUNT; perk++) {
+        if (perkGetRank(gDude, perk) > 0) {
+            owned[ownedCount++] = perk;
+        }
+    }
+
+    if (ownedCount == 0) {
+        char msg[64];
+        strcpy(msg, "You have no perks to respec.");
+        showDialogBox(msg, nullptr, 0, 192, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_LARGE);
+        return;
+    }
+
+    for (int i = 0; i < ownedCount; i++) {
+        int perk = owned[i];
+        int rank = perkGetRank(gDude, perk);
+
+        char title[128];
+        char line1[128];
+        char line2[128];
+        const char* body[] = { line1, line2 };
+
+        if (rank > 1) {
+            snprintf(title, sizeof(title), "Remove %s (rank %d)?", perkGetName(perk), rank);
+        } else {
+            snprintf(title, sizeof(title), "Remove %s?", perkGetName(perk));
+        }
+        strcpy(line1, "You will choose a replacement.");
+        snprintf(line2, sizeof(line2), "(%d of %d)", i + 1, ownedCount);
+
+        int rc = showDialogBox(title, body, 2, 192, 126, _colorTable[32328], nullptr, _colorTable[32328], DIALOG_BOX_YES_NO);
+        if (rc != 0) {
+            // perkRemove decrements rank by 1 and reverses perkAddEffect,
+            // so Gain-X and similar bonus-stat perks are cleaned up.
+            perkRemove(gDude, perk);
+            perkDialogShow();
+            return;
+        }
+    }
 }
 
 // copy editor perks to character

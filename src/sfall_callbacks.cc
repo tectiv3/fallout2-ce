@@ -87,7 +87,7 @@ void sfallOnGameModeChange(int exit, int previousGameMode)
 void sfallOnLevelUp(Object* critter, int oldLevel, int newLevel)
 {
     scriptHooks_OnLevelUp(critter, oldLevel, newLevel);
-    debugPrint("SFALL: HOOK_ONLEVELUP fired (level %d->%d)\n", oldLevel, newLevel);
+    debugPrint("\nSFALL: HOOK_ONLEVELUP fired (level %d->%d)\n", oldLevel, newLevel);
 
     bool autoHeal = false;
     configGetBool(&gSfallConfig, SFALL_CONFIG_MISC_KEY, SFALL_CONFIG_AUTO_HEAL_ON_LEVELUP, &autoHeal);

@@ -655,7 +655,14 @@ int gameHandleKey(int eventCode, bool isInCombatMode)
         if (interfaceBarEnabled()) {
             soundPlayFile("ib1p1xx1");
             bool isoWasEnabled = isoDisable();
-            characterEditorShow(false);
+            bool respec = settings.preferences.allow_respec;
+            if (respec) {
+                // Respec reshuffles existing SPECIAL only — start at 0 points
+                // so the user must decrement a stat to free a point before
+                // raising another.
+                gCharacterEditorRemainingCharacterPoints = 0;
+            }
+            characterEditorShow(respec);
             if (isoWasEnabled) {
                 isoEnable();
             }

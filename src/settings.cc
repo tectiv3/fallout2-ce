@@ -208,6 +208,7 @@ void initSettingsRegistry(bool isMapper)
     SETTING(brightness);
     SETTING(mouse_sensitivity);
     SETTING(running_burning_guy);
+    SETTING(allow_respec);
 #undef SECT
 
 #define SECT sound

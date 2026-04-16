@@ -132,6 +132,16 @@
         </dict>
         <dict>
             <key>Type</key>
+            <string>PSToggleSwitchSpecifier</string>
+            <key>Title</key>
+            <string>Allow character respec</string>
+            <key>Key</key>
+            <string>allow_respec</string>
+            <key>DefaultValue</key>
+            <false/>
+        </dict>
+        <dict>
+            <key>Type</key>
             <string>PSGroupSpecifier</string>
             <key>Title</key>
             <string>Interface</string>
