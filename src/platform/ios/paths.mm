@@ -704,17 +704,10 @@ void iOSApplyUserDefaultsToSettings()
         // SkipOpeningMovies: 0=play intros, 1=skip intros, 2=also skip splash.
         // Map the toggle to 0/2 so the splash is also skipped when the user
         // opts out of intros (the common "just boot me in" expectation).
-        int skipIntros = [defaults boolForKey:@"skip_intro_movies"] ? 2 : 0;
-        fallout::configSetInt(&fallout::gSfallConfig,
-            SFALL_CONFIG_MISC_KEY,
-            SFALL_CONFIG_SKIP_OPENING_MOVIES_KEY,
-            skipIntros);
+        fallout::settings.ui.skip_opening_movies = [defaults boolForKey:@"skip_intro_movies"] ? 2 : 0;
 
 
-        fallout::configSetInt(&fallout::gSfallConfig,
-            SFALL_CONFIG_MISC_KEY,
-            SFALL_CONFIG_DISPLAY_BONUS_DAMAGE_KEY,
-            [defaults boolForKey:@"combat_display_bonus_damage"] ? 1 : 0);
+        fallout::settings.ui.display_bonus_damage = [defaults boolForKey:@"combat_display_bonus_damage"];
 
         fallout::quickToolbarSetEnabled([defaults boolForKey:@"quick_toolbar_visible"]);
 
