@@ -403,8 +403,43 @@ static NSDate* iOSNewestMtimeInDir(NSURL* dir)
     return newest;
 }
 
-// Atomic slot-directory replace: remove dst, copy src -> dst under a replacing
-// file coordinator. Safe even if dst doesn't exist yet.
+// A cloud slot is only worth pulling if it contains a materialized, non-empty
+// SAVE.DAT.  Anything less would destroy the local save for no benefit.
+static BOOL iOSCloudSlotIsValid(NSURL* slotDir)
+{
+    NSURL* saveDat = [slotDir URLByAppendingPathComponent:@"SAVE.DAT"];
+    NSFileManager* fm = [NSFileManager defaultManager];
+
+    // Must exist as a regular file (not a directory or symlink to nothing).
+    NSDictionary* attrs = [fm attributesOfItemAtPath:saveDat.path error:nil];
+    if (attrs == nil || ![attrs[NSFileType] isEqualToString:NSFileTypeRegular]) {
+        return NO;
+    }
+
+    // A zero-byte SAVE.DAT is as useless as a missing one (truncated write,
+    // iCloud placeholder that the daemon replaced with an empty stub).
+    if ([attrs[NSFileSize] unsignedLongLongValue] == 0) {
+        return NO;
+    }
+
+    // If the file lives inside the ubiquity container, verify content is
+    // actually downloaded — not just metadata-present.
+    NSString* dlStatus = nil;
+    [saveDat getResourceValue:&dlStatus
+                       forKey:NSURLUbiquitousItemDownloadingStatusKey
+                        error:nil];
+    if (dlStatus != nil
+        && ![dlStatus isEqualToString:NSURLUbiquitousItemDownloadingStatusCurrent]
+        && ![dlStatus isEqualToString:NSURLUbiquitousItemDownloadingStatusDownloaded]) {
+        return NO;
+    }
+
+    return YES;
+}
+
+// Replace dst with src, preserving the local save until the copy is verified.
+// Sequence: back up dst → remove dst → copy src → validate → clean up backup.
+// On any failure the backup is restored so the user never loses data.
 static BOOL iOSReplaceSlotAtomic(NSURL* src, NSURL* dst)
 {
     NSFileManager* fm = [NSFileManager defaultManager];
@@ -412,6 +447,21 @@ static BOOL iOSReplaceSlotAtomic(NSURL* src, NSURL* dst)
  withIntermediateDirectories:YES
                   attributes:nil
                        error:nil];
+
+    // Back up the existing local slot (if any) so we can restore on failure.
+    NSURL* backup = [[dst URLByDeletingLastPathComponent]
+        URLByAppendingPathComponent:
+            [dst.lastPathComponent stringByAppendingString:@".bak"]];
+    [fm removeItemAtURL:backup error:nil];
+    BOOL hadLocal = [fm fileExistsAtPath:dst.path];
+    if (hadLocal) {
+        NSError* mvErr = nil;
+        if (![fm moveItemAtURL:dst toURL:backup error:&mvErr]) {
+            SDL_Log("iCloud sync: backup %s failed: %s",
+                dst.path.UTF8String, mvErr.localizedDescription.UTF8String);
+            return NO;
+        }
+    }
 
     NSFileCoordinator* coord = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
     __block BOOL ok = NO;
@@ -423,16 +473,37 @@ static BOOL iOSReplaceSlotAtomic(NSURL* src, NSURL* dst)
                               options:NSFileCoordinatorWritingForReplacing
                                 error:&coordErr
                            byAccessor:^(NSURL* s, NSURL* d) {
-        [fm removeItemAtURL:d error:nil];
         ok = [fm copyItemAtURL:s toURL:d error:&opErr];
     }];
+
     if (coordErr != nil || !ok) {
         NSError* e = opErr ?: coordErr;
         SDL_Log("iCloud sync: slot replace %s -> %s failed: %s",
             src.path.UTF8String, dst.path.UTF8String,
             e.localizedDescription.UTF8String);
+        // Restore local save from backup.
+        if (hadLocal) {
+            [fm removeItemAtURL:dst error:nil];
+            [fm moveItemAtURL:backup toURL:dst error:nil];
+        }
         return NO;
     }
+
+    // Verify the copy produced a usable save.
+    NSURL* dstSave = [dst URLByAppendingPathComponent:@"SAVE.DAT"];
+    NSDictionary* attrs = [fm attributesOfItemAtPath:dstSave.path error:nil];
+    if (attrs == nil || [attrs[NSFileSize] unsignedLongLongValue] == 0) {
+        SDL_Log("iCloud sync: copy produced invalid slot %s -- restoring backup",
+            dst.path.UTF8String);
+        [fm removeItemAtURL:dst error:nil];
+        if (hadLocal) {
+            [fm moveItemAtURL:backup toURL:dst error:nil];
+        }
+        return NO;
+    }
+
+    // Success — discard backup.
+    [fm removeItemAtURL:backup error:nil];
     return YES;
 }
 
@@ -541,6 +612,13 @@ static void iOSPullReadySlots()
 
         if (newestLocal != nil && newestCloud != nil
             && [newestCloud compare:newestLocal] != NSOrderedDescending) {
+            continue;
+        }
+
+        // Never replace a local save unless the cloud source is trustworthy.
+        if (!iOSCloudSlotIsValid(cloudSlot)) {
+            SDL_Log("iCloud sync: skipping slot %s -- cloud SAVE.DAT missing or empty",
+                slotName.UTF8String);
             continue;
         }
 
