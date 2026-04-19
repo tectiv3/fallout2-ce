@@ -98,40 +98,6 @@
         </dict>
         <dict>
             <key>Type</key>
-            <string>PSMultiValueSpecifier</string>
-            <key>Title</key>
-            <string>Damage formula</string>
-            <key>Key</key>
-            <string>damage_formula</string>
-            <key>DefaultValue</key>
-            <integer>0</integer>
-            <key>Titles</key>
-            <array>
-                <string>Vanilla</string>
-                <string>Glovz</string>
-                <string>Glovz + damage mod</string>
-                <string>Haenlomal's YAAM</string>
-            </array>
-            <key>Values</key>
-            <array>
-                <integer>0</integer>
-                <integer>1</integer>
-                <integer>2</integer>
-                <integer>5</integer>
-            </array>
-        </dict>
-        <dict>
-            <key>Type</key>
-            <string>PSToggleSwitchSpecifier</string>
-            <key>Title</key>
-            <string>Show bonus damage in combat</string>
-            <key>Key</key>
-            <string>combat_display_bonus_damage</string>
-            <key>DefaultValue</key>
-            <false/>
-        </dict>
-        <dict>
-            <key>Type</key>
             <string>PSToggleSwitchSpecifier</string>
             <key>Title</key>
             <string>Allow character respec</string>
@@ -155,6 +121,32 @@
             <string>quick_toolbar_visible</string>
             <key>DefaultValue</key>
             <true/>
+        </dict>
+        <dict>
+            <key>Type</key>
+            <string>PSMultiValueSpecifier</string>
+            <key>Title</key>
+            <string>Animation speed</string>
+            <key>Key</key>
+            <string>anim_speed</string>
+            <key>DefaultValue</key>
+            <real>1.0</real>
+            <key>Titles</key>
+            <array>
+                <string>Normal (1×)</string>
+                <string>Fast (1.5×)</string>
+                <string>Very fast (2×)</string>
+                <string>Ultra fast (3×)</string>
+                <string>Instant (10×)</string>
+            </array>
+            <key>Values</key>
+            <array>
+                <real>1.0</real>
+                <real>1.5</real>
+                <real>2.0</real>
+                <real>3.0</real>
+                <real>10.0</real>
+            </array>
         </dict>
     </array>
 </dict>

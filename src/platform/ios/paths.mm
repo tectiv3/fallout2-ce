@@ -658,10 +658,10 @@ void iOSApplyUserDefaultsToSettings()
             @"resolution_preset" : @"native",
             @"resolution_scale" : @1,
             @"skip_intro_movies" : @NO,
-            @"damage_formula" : @0,
-            @"combat_display_bonus_damage" : @NO,
+
             @"quick_toolbar_visible" : @YES,
             @"allow_respec" : @NO,
+            @"anim_speed" : @1.0,
         }];
 
         NSString* preset = [defaults stringForKey:@"resolution_preset"];
@@ -707,10 +707,14 @@ void iOSApplyUserDefaultsToSettings()
         fallout::settings.ui.skip_opening_movies = [defaults boolForKey:@"skip_intro_movies"] ? 2 : 0;
 
 
-        fallout::settings.ui.display_bonus_damage = [defaults boolForKey:@"combat_display_bonus_damage"];
 
         fallout::quickToolbarSetEnabled([defaults boolForKey:@"quick_toolbar_visible"]);
 
         fallout::settings.preferences.allow_respec = [defaults boolForKey:@"allow_respec"];
+
+        double animSpeed = [defaults doubleForKey:@"anim_speed"];
+        if (animSpeed < 0.1) animSpeed = 0.1;
+        if (animSpeed > 100.0) animSpeed = 100.0;
+        fallout::settings.ui.anim_speed = animSpeed;
     }
 }
