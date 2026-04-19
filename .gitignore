@@ -415,7 +415,7 @@ opencode.json
 
 # Project-specific ignores
 data
-.serena
+.serena/cache
 .claude/settings.local.json
 master.dat
 critter.dat
