@@ -95,7 +95,7 @@ int showOptions()
         return -1;
     }
 
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     int rc = -1;
     while (rc == -1) {
@@ -322,7 +322,7 @@ static int optionsWindowFree()
         isoEnable();
     }
 
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 
     return 0;
 }

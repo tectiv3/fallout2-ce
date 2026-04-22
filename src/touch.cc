@@ -3,6 +3,10 @@
 #include <algorithm>
 #include <stack>
 
+#if __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include "mouse.h"
 #include "svga.h"
 
@@ -37,8 +41,13 @@ static Touch touches[MAX_TOUCHES];
 static Gesture currentGesture;
 static std::stack<Gesture> gestureEventsQueue;
 
+#if __APPLE__ && TARGET_OS_IOS
+static bool gUseTouchscreenMode = true;
+#else
 static bool gUseTouchscreenMode = false;
+#endif
 static bool gUsePanMode = false;
+static std::stack<bool> gTouchscreenModeStack;
 
 static int find_touch(SDL_FingerID fingerId)
 {
@@ -305,6 +314,20 @@ void touch_set_touchscreen_mode(const bool value)
 bool touch_get_touchscreen_mode()
 {
     return gUseTouchscreenMode;
+}
+
+void touch_push_touchscreen_mode(const bool value)
+{
+    gTouchscreenModeStack.push(gUseTouchscreenMode);
+    gUseTouchscreenMode = value;
+}
+
+void touch_pop_touchscreen_mode()
+{
+    if (!gTouchscreenModeStack.empty()) {
+        gUseTouchscreenMode = gTouchscreenModeStack.top();
+        gTouchscreenModeStack.pop();
+    }
 }
 
 void touch_set_pan_mode(const bool value)

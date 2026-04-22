@@ -116,7 +116,7 @@ int skilldexOpen()
         return -1;
     }
 
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     int rc = -1;
     while (rc == -1) {
@@ -414,7 +414,7 @@ static void skilldexWindowFree()
     colorCycleEnable();
 
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 }
 
 } // namespace fallout

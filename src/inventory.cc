@@ -1577,7 +1577,7 @@ static bool _setup_inventory(int inventoryWindowType)
     bool isoWasEnabled = isoDisable();
 
     _gmouse_disable(0);
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
     touch_set_pan_mode(true);
 
     return isoWasEnabled;
@@ -1624,7 +1624,7 @@ static void _exit_inventory(bool shouldEnableIso)
     inventoryLootFrmImage.unlock();
 
     _gmouse_enable();
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
     touch_set_pan_mode(false);
 
     if (_dropped_explosive) {

@@ -812,7 +812,7 @@ int characterEditorShow(bool isCreationMode)
         return -1;
     }
 
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     if (!gCharacterEditorIsCreationMode) {
         if (characterEditorUpdateLevel()) {
@@ -1219,7 +1219,7 @@ int characterEditorShow(bool isCreationMode)
 
     interfaceRenderHitPoints(false);
 
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 
     return rc;
 }

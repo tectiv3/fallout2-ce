@@ -1211,7 +1211,7 @@ static int preferencesWindowFree()
     fontSetCurrent(_oldFont);
 
     messageListFree(&gPreferencesMessageList);
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 
     return 0;
 }
@@ -1231,7 +1231,7 @@ int doPreferences(bool animated)
         mouseShowCursor();
     }
 
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     if (animated) {
         colorPaletteLoad("color.pal");

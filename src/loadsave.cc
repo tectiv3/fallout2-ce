@@ -488,7 +488,7 @@ int lsgSaveGame(int mode)
         return -1;
     }
 
-    touch_set_touchscreen_mode(mode == LOAD_SAVE_MODE_NORMAL);
+    touch_push_touchscreen_mode(true);
 
     _quick_done = false;
 
@@ -497,6 +497,7 @@ int lsgSaveGame(int mode)
         : LOAD_SAVE_WINDOW_TYPE_SAVE_GAME;
     if (lsgWindowInit(windowType) == -1) {
         debugPrint("\nLOADSAVE: ** Error loading save game screen data! **\n");
+        touch_pop_touchscreen_mode();
         return -1;
     }
 
@@ -1137,10 +1138,11 @@ int lsgLoadGame(int mode)
         gDevLoadGameSlot = -1;
     }
 
-    touch_set_touchscreen_mode(windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME || windowType == LOAD_SAVE_WINDOW_TYPE_LOAD_GAME_FROM_MAIN_MENU);
+    touch_push_touchscreen_mode(true);
 
     if (lsgWindowInit(windowType) == -1) {
         debugPrint("\nLOADSAVE: ** Error loading save game screen data! **\n");
+        touch_pop_touchscreen_mode();
         return -1;
     }
 
@@ -1846,7 +1848,7 @@ static int lsgWindowFree(int windowType)
 
     colorCycleEnable();
     gameMouseSetCursor(MOUSE_CURSOR_ARROW);
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 
     return 0;
 }

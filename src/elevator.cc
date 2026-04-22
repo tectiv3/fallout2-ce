@@ -348,7 +348,7 @@ int elevatorSelectLevel(int elevator, int* mapPtr, int* elevationPtr, int* tileP
     }
 
     const ElevatorDescription* elevatorDescription = gElevatorDescriptions[elevator];
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     int index;
     for (index = 0; index < ELEVATOR_LEVEL_MAX; index++) {
@@ -467,7 +467,7 @@ int elevatorSelectLevel(int elevator, int* mapPtr, int* elevationPtr, int* tileP
     }
 
     elevatorWindowFree();
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 
     if (keyCode != KEY_ESCAPE) {
         const ElevatorDescription* description = &(elevatorDescription[keyCode]);

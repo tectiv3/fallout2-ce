@@ -14,9 +14,9 @@ The engine tracks keys in **two** places and they don't talk to each other autom
 Independent flags. Both matter.
 
 - `mouseDeviceUsesRelativeMode()` (src/dinput.cc): cached from `screenIsFullscreen()` at `mouseDeviceInitMode`. Controls whether `_mouse_simulate_input(dx, dy, btn)` adds deltas to the cursor position (relative mode — "trackpad") or teleports the cursor to `(dx, dy)` (absolute mode). iOS + windowed=0 → relative.
-- `gUseTouchscreenMode` (src/touch.cc): per-screen override set by `touch_set_touchscreen_mode()`. When true, the touch handler snaps the cursor to the finger position on every move via `_mouse_set_position(centroid.x, centroid.y)`. Enabled explicitly in inventory, skilldex, elevator, automap, main menu, load/save, options, preferences — and in `gameMouseSetMode(GAME_MOUSE_MODE_MOVE)` which is gameplay's default walk cursor.
+- `gUseTouchscreenMode` (src/touch.cc): **defaults to true on iOS** (`#if __APPLE__ && TARGET_OS_IOS`), **false on other platforms**. When true, the touch handler snaps the cursor to the finger position on every move via `_mouse_set_position(centroid.x, centroid.y)`. On iOS, only **gameplay** (`gameMouseSetMode` → always false) and **worldmap** explicitly disable it; new screens get touchscreen mode automatically. On other platforms, `gameMouseSetMode` sets it to `mode == GAME_MOUSE_MODE_MOVE` (true for walk cursor, false for others).
 
-The gameplay-MOVE case is what made the cursor teleport during combat on iPad. `src/game_mouse.cc` now guards that with `#if __APPLE__ && TARGET_OS_IOS` so gameplay stays in relative mode on iPad while UI screens keep their existing touchscreen-mode behavior.
+UI screens use `touch_push_touchscreen_mode(true)` on entry and `touch_pop_touchscreen_mode()` on exit to preserve the caller's state. The push/pop stack in `src/touch.cc` handles nested screen transitions correctly (e.g., gameplay→dialog→barter(inventory)→back to dialog→back to gameplay). Direct `touch_set_touchscreen_mode()` is reserved for top-level state changes (gameplay, worldmap, main menu).
 
 ## Absolute-position tap in relative mode
 

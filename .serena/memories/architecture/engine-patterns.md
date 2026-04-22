@@ -9,7 +9,8 @@
 
 ### Mouse modes and touch handling
 - `mouseDeviceUsesRelativeMode()` (`src/dinput.cc`): cached from `screenIsFullscreen()` at `mouseDeviceInitMode`. Controls whether `_mouse_simulate_input(dx, dy, btn)` adds deltas to cursor position (relative mode) or teleports to `(dx, dy)` (absolute mode).
-- `gUseTouchscreenMode` (`src/touch.cc`): per-screen override set by `touch_set_touchscreen_mode()`. When true, touch handler snaps cursor to finger position via `_mouse_set_position(centroid.x, centroid.y)`.
+- `gUseTouchscreenMode` (`src/touch.cc`): **defaults to true on iOS** (`#if __APPLE__ && TARGET_OS_IOS`), false on other platforms. When true, touch handler snaps cursor to finger position via `_mouse_set_position(centroid.x, centroid.y)`. On iOS, only gameplay and worldmap disable it; new screens get touchscreen mode automatically.
+- UI screens use `touch_push_touchscreen_mode(true)` / `touch_pop_touchscreen_mode()` (stack-based) to preserve caller's state across nested transitions. Direct `touch_set_touchscreen_mode()` is reserved for top-level state (gameplay, worldmap, main menu).
 - iOS touch gestures: 1-finger tap → left click, 2-finger tap → right click, 1-finger drag → cursor delta, 2-finger drag → mouse wheel, 3-finger swipe down → KEY_ESCAPE, 3-finger long-press → LSHIFT, 4-finger long-press → KEY_F6.
 
 ## UI state management patterns

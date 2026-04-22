@@ -508,7 +508,7 @@ int pipboyOpen(int intent)
         return -1;
     }
 
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     mouseGetPositionInWindow(gPipboyWindow, &gPipboyPreviousMouseX, &gPipboyPreviousMouseY);
     gPipboyLastEventTimestamp = getTicks();
@@ -578,7 +578,7 @@ int pipboyOpen(int intent)
         sharedFpsLimiter.throttle();
     }
 
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 
     pipboyWindowFree();
 

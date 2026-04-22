@@ -989,7 +989,7 @@ int _gdialogInitFromScript(int headFid, int reaction)
     // On iPad with relative mouse mode, taps send zero-delta clicks at the
     // cursor position instead of at the finger — unusable without touchscreen
     // mode. Same pattern as inventory, skilldex, elevator, automap, etc.
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     return 0;
 }
@@ -1015,7 +1015,7 @@ int _gdialogExitFromScript()
         gameDialogRestoreCenterTile();
     }
 
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 
     GameMode::exitGameMode(GameMode::kDialog);
 
@@ -2007,9 +2007,8 @@ int gameDialogProcessUI()
                     dialogMode = GAME_DIALOG_MODE_TALK;
                 }
 
-                // Barter's _exit_inventory() disables touchscreen mode.
-                // Re-enable it for the dialog UI.
-                touch_set_touchscreen_mode(true);
+                // Barter's _exit_inventory() pops touchscreen mode,
+                // restoring the dialog's pushed state (true).
 
                 continue;
             } else if (dialogSwitchMode == GAME_DIALOG_MODE_PARTY_CONTROL_ACTIVE) {
@@ -2017,9 +2016,8 @@ int gameDialogProcessUI()
                 partyMemberControlWindowHandleEvents();
                 partyMemberControlWindowFree();
 
-                // Party control may have changed touchscreen mode.
-                // Re-enable it for the dialog UI.
-                touch_set_touchscreen_mode(true);
+                // Party control doesn't change touchscreen mode;
+                // dialog's pushed state (true) is still active.
 
                 continue;
             } else if (dialogSwitchMode == GAME_DIALOG_MODE_PARTY_CUSTOMIZATION_ACTIVE) {
@@ -2027,9 +2025,8 @@ int gameDialogProcessUI()
                 partyMemberCustomizationWindowHandleEvents();
                 partyMemberCustomizationWindowFree();
 
-                // Party customization may have changed touchscreen mode.
-                // Re-enable it for the dialog UI.
-                touch_set_touchscreen_mode(true);
+                // Party customization doesn't change touchscreen mode;
+                // dialog's pushed state (true) is still active.
 
                 continue;
             }

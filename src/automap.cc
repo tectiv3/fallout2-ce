@@ -320,7 +320,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
     int oldFont = fontGetCurrent();
     fontSetCurrent(101);
-    touch_set_touchscreen_mode(true);
+    touch_push_touchscreen_mode(true);
 
     int automapWindowX = (screenGetWidth() - AUTOMAP_WINDOW_WIDTH) / 2;
     int automapWindowY = (screenGetHeight() - AUTOMAP_WINDOW_HEIGHT) / 2;
@@ -494,7 +494,7 @@ void automapShow(bool isInGame, bool isUsingScanner)
 
     windowDestroy(window);
     fontSetCurrent(oldFont);
-    touch_set_touchscreen_mode(false);
+    touch_pop_touchscreen_mode();
 }
 
 // Renders automap in Map window.
