@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#if __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include <algorithm>
 #include <string>
 #include <utility>
@@ -4075,6 +4079,29 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
 
     int menuItemIndex = 0;
     int previousMouseY = y;
+
+#if __APPLE__ && TARGET_OS_IOS
+    struct Ctx { int inventoryWindowType; Rect* rect; };
+    Ctx stickyCtx = { inventoryWindowType, &rect };
+    menuItemIndex = gameMouseRunStickyMenuLoop(
+        actionMenuItemsLength,
+        menuItemIndex,
+        previousMouseY,
+        y,
+        [](void* p) -> bool {
+            auto* c = static_cast<Ctx*>(p);
+            if (c->inventoryWindowType == INVENTORY_WINDOW_TYPE_NORMAL) {
+                _display_body(-1, INVENTORY_WINDOW_TYPE_NORMAL);
+            }
+            return false;
+        },
+        [](void* p) {
+            auto* c = static_cast<Ctx*>(p);
+            windowRefreshRect(gInventoryWindow, c->rect);
+        },
+        &stickyCtx,
+        false);
+#else
     while ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_UP) == 0) {
         sharedFpsLimiter.mark();
 
@@ -4103,6 +4130,7 @@ static void inventoryWindowOpenContextMenu(int keyCode, int inventoryWindowType)
         renderPresent();
         sharedFpsLimiter.throttle();
     }
+#endif
 
     buttonDestroy(btn);
 

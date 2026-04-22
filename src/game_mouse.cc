@@ -34,6 +34,7 @@
 #include "svga.h"
 #include "text_font.h"
 #include "tile.h"
+#include "touch.h"
 #include "window_manager.h"
 
 namespace fallout {
@@ -131,6 +132,10 @@ static int _gmouse_3d_menu_frame_hot_x = 0;
 
 // 0x518CA4
 static int _gmouse_3d_menu_frame_hot_y = 0;
+
+// Height of a single menu item FRM, set during rendering for use
+// by the sticky-menu tap-selection logic on iOS.
+static int gGameMouseActionMenuItemHeight = 0;
 
 // 0x518CA8
 static unsigned char* gGameMouseActionMenuFrmData = nullptr;
@@ -1138,6 +1143,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
             if (gameMouseRenderActionMenuItems(mouseX, mouseY, actionMenuItems, actionMenuItemsCount, _scr_size.right - _scr_size.left + 1, _scr_size.bottom - _scr_size.top - 99) == 0) {
                 Rect cursorRect;
                 int fid = buildFid(OBJ_TYPE_INTERFACE, 283, 0, 0, 0);
+
                 // NOTE: Uninline.
                 if (gmouse_3d_set_flat_fid(fid, &cursorRect) == 0 && _gmouse_3d_move_to(mouseX, mouseY, gElevation, &cursorRect) == 0) {
                     tileWindowRefreshRect(&cursorRect, gElevation);
@@ -1145,6 +1151,30 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
 
                     int newMouseY = mouseY;
                     int actionIndex = 0;
+
+#if __APPLE__ && TARGET_OS_IOS
+                    struct Ctx { Rect* cursorRect; };
+                    Ctx stickyCtx = { &cursorRect };
+                    int result = gameMouseRunStickyMenuLoop(
+                        actionMenuItemsCount,
+                        actionIndex,
+                        newMouseY,
+                        mouseY,
+                        [](void*) -> bool {
+                            return _game_user_wants_to_quit != GAME_QUIT_REQUEST_NONE;
+                        },
+                        [](void* p) {
+                            auto* c = static_cast<Ctx*>(p);
+                            tileWindowRefreshRect(c->cursorRect, gElevation);
+                        },
+                        &stickyCtx,
+                        true);
+                    if (result < 0) {
+                        actionMenuItems[actionIndex] = 0;
+                    } else {
+                        actionIndex = result;
+                    }
+#else
                     while ((mouseGetEvent() & MOUSE_EVENT_LEFT_BUTTON_UP) == 0) {
                         sharedFpsLimiter.mark();
 
@@ -1174,6 +1204,7 @@ void _gmouse_handle_event(int mouseX, int mouseY, int mouseState)
                         renderPresent();
                         sharedFpsLimiter.throttle();
                     }
+#endif
 
                     isoEnable();
 
@@ -1803,6 +1834,7 @@ int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuI
 
     int menuItemWidth = artGetWidth(menuItemFrms[0], 0, 0);
     int menuItemHeight = artGetHeight(menuItemFrms[0], 0, 0);
+    gGameMouseActionMenuItemHeight = menuItemHeight;
 
     _gmouse_3d_menu_frame_hot_x = 0;
     _gmouse_3d_menu_frame_hot_y = 0;
@@ -1903,6 +1935,89 @@ int gameMouseHighlightActionMenuItemAtIndex(int menuItemIndex)
 
     return 0;
 }
+
+#if __APPLE__ && TARGET_OS_IOS
+int gameMouseRunStickyMenuLoop(
+    int menuItemCount,
+    int initialIndex,
+    int initialMouseY,
+    int menuAnchorY,
+    bool (*onFrame)(void*),
+    void (*onRefresh)(void*),
+    void* ctx,
+    bool manageTouchMode)
+{
+    int menuTopY = menuAnchorY - _gmouse_3d_menu_frame_hot_y;
+    int menuItemHeight = gGameMouseActionMenuItemHeight;
+    int menuItemIndex = initialIndex;
+    int previousMouseY = initialMouseY;
+    bool stickyPhase = false;
+
+    while (true) {
+        sharedFpsLimiter.mark();
+
+        inputGetInput();
+
+        if (onFrame != nullptr && onFrame(ctx)) {
+            menuItemIndex = -1;
+            break;
+        }
+
+        int mouseEvent = mouseGetEvent();
+
+        if (!stickyPhase) {
+            int curMouseX, curMouseY;
+            mouseGetPosition(&curMouseX, &curMouseY);
+
+            if (abs(curMouseY - previousMouseY) > 10) {
+                if (curMouseY < previousMouseY && menuItemIndex > 0) {
+                    menuItemIndex--;
+                } else if (curMouseY > previousMouseY && menuItemIndex < menuItemCount - 1) {
+                    menuItemIndex++;
+                }
+
+                gameMouseHighlightActionMenuItemAtIndex(menuItemIndex);
+                if (onRefresh != nullptr) {
+                    onRefresh(ctx);
+                }
+                previousMouseY = curMouseY;
+            }
+
+            if (mouseEvent & MOUSE_EVENT_LEFT_BUTTON_UP) {
+                stickyPhase = true;
+                if (manageTouchMode) {
+                    touch_push_touchscreen_mode(true);
+                }
+            }
+        } else {
+            if (mouseEvent & MOUSE_EVENT_LEFT_BUTTON_DOWN) {
+                int tapX, tapY;
+                mouseGetPosition(&tapX, &tapY);
+                int tappedIndex = (tapY - menuTopY) / menuItemHeight;
+                if (tappedIndex >= 0 && tappedIndex < menuItemCount) {
+                    menuItemIndex = tappedIndex;
+                    gameMouseHighlightActionMenuItemAtIndex(menuItemIndex);
+                    if (onRefresh != nullptr) {
+                        onRefresh(ctx);
+                    }
+                }
+            }
+            if (mouseEvent & MOUSE_EVENT_LEFT_BUTTON_UP) {
+                break;
+            }
+        }
+
+        renderPresent();
+        sharedFpsLimiter.throttle();
+    }
+
+    if (stickyPhase && manageTouchMode) {
+        touch_pop_touchscreen_mode();
+    }
+
+    return menuItemIndex;
+}
+#endif
 
 // 0x44D774
 int gameMouseRenderAccuracy(const char* string, int color)

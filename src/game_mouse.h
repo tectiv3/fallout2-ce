@@ -1,6 +1,10 @@
 #ifndef GAME_MOUSE_H
 #define GAME_MOUSE_H
 
+#if __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include "obj_types.h"
 
 namespace fallout {
@@ -100,6 +104,28 @@ int gameMouseRenderPrimaryAction(int x, int y, int menuItem, int width, int heig
 int _gmouse_3d_pick_frame_hot(int* x, int* y);
 int gameMouseRenderActionMenuItems(int x, int y, const int* menuItems, int menuItemsCount, int width, int height);
 int gameMouseHighlightActionMenuItemAtIndex(int menuItemIndex);
+#if __APPLE__ && TARGET_OS_IOS
+// Runs the iOS sticky-menu input loop for touch devices.
+// Returns the selected menu item index, or -1 if aborted.
+//
+// menuItemCount: total number of action menu items.
+// initialIndex: starting highlighted item index.
+// initialMouseY: starting mouse Y for hold-phase drag tracking.
+// menuAnchorY: screen Y where the menu was placed (before hot_y offset).
+// onFrame: called each frame before input; return true to abort. May be NULL.
+// onRefresh: called when the highlighted item changes. May be NULL.
+// ctx: opaque pointer forwarded to onFrame and onRefresh.
+// manageTouchMode: if true, push/pop touchscreen mode around the sticky phase.
+int gameMouseRunStickyMenuLoop(
+    int menuItemCount,
+    int initialIndex,
+    int initialMouseY,
+    int menuAnchorY,
+    bool (*onFrame)(void*),
+    void (*onRefresh)(void*),
+    void* ctx,
+    bool manageTouchMode);
+#endif
 void gameMouseLoadItemHighlight();
 void _gmouse_remove_item_outline(Object* object);
 
