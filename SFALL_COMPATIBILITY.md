@@ -101,7 +101,7 @@ See [`https://sfall-team.github.io/sfall/`](https://sfall-team.github.io/sfall/)
 | Steal | `HOOK_STEAL` | 🚫 | Et tu |
 | WithinPerception | `HOOK_WITHINPERCEPTION` | ✅ | - |
 | InventoryMove | `HOOK_INVENTORYMOVE` | ✅ | - |
-| InvenWield | `HOOK_INVENWIELD` | ✅ | - |
+| InvenWield | `HOOK_INVENWIELD` | ✅ | Fully compatible: all sfall args (including isRemove/arg4), ret0=-1 convention, all wield/unwield/remove/drop paths. |
 | AdjustFID | `HOOK_ADJUSTFID` | ✅ | Second hook arg currently matches the first because CE has no internal FID modifiers like Hero Appearance. |
 | CombatTurn | `HOOK_COMBATTURN` | ✅ | - |
 | StdProcedure | `HOOK_STDPROCEDURE` | ✅ | - |
@@ -124,5 +124,5 @@ See [`https://sfall-team.github.io/sfall/`](https://sfall-team.github.io/sfall/)
 | AdjustRads | `HOOK_ADJUSTRADS` | 🚫 | (maybe) |
 | RollCheck | `HOOK_ROLLCHECK` | 🚫 | - |
 | BestWeapon | `HOOK_BESTWEAPON` | 🚫 | - |
-| CanUseWeapon | `HOOK_CANUSEWEAPON` | ✅ | - |
+| CanUseWeapon | `HOOK_CANUSEWEAPON` | ✅ | Fully compatible: all sfall args (hitMode, engineResult), all AI call sites, correct override logic. |
 | BuildSfxWeapon | `HOOK_BUILDSFXWEAPON` | 🚫 | - |
