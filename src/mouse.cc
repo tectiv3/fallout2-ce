@@ -508,7 +508,7 @@ void _mouse_info()
 
 #if __APPLE__ && TARGET_OS_IOS
             if (handleHudTapThrough(gesture)) {
-                goto tap_done;
+                break;
             }
 #endif
 
@@ -519,14 +519,12 @@ void _mouse_info()
                     _mouse_simulate_input(0, 0, MOUSE_STATE_RIGHT_BUTTON_DOWN);
                 }
             } else {
-                _mouse_set_position(gesture.x, gesture.y);
                 if (gesture.numberOfTouches == 1) {
                     _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_LEFT_BUTTON_DOWN);
                 } else if (gesture.numberOfTouches == 2) {
                     _mouse_simulate_input(gesture.x, gesture.y, MOUSE_STATE_RIGHT_BUTTON_DOWN);
                 }
             }
-        tap_done:
             break;
         }
         case kLongPress:

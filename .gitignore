@@ -427,3 +427,4 @@ ios-signing.cmake
 os/ios/version.txt
 export
 .claude/
+sfall/
