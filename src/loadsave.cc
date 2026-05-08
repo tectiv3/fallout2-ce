@@ -219,6 +219,12 @@ static int _slot_cursor = 0;
 
 static int gDevLoadGameSlot = -1;
 
+void lsgSetSlotCursor(int slot)
+{
+    if (slot >= 0 && slot < 100) {
+        _slot_cursor = slot;
+    }
+}
 
 // 0x5193BC
 static bool _quick_done = false;
